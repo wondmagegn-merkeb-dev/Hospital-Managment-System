@@ -3,6 +3,9 @@ import Layout from '../components/Layout';
 import Dashboard from '../pages/Dashboard';
 import UserManagement from '../pages/UserManagement';
 import RoleManagement from '../pages/RoleManagement';
+import Login from '../pages/Login';
+import ForgotPassword from '../pages/ForgotPassword';
+import VerifyEmail from '../pages/VerifyEmail';
 import NotFound from '../pages/NotFound';
 import AccessDenied from '../pages/AccessDenied';
 import ErrorPage from '../pages/ErrorPage';
@@ -11,6 +14,9 @@ export default function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route
           path="/dashboard"

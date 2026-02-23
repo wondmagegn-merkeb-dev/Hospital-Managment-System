@@ -1,13 +1,12 @@
 import { useState } from 'react';
-import { Plus, Edit, Trash2, Shield, Eye } from 'lucide-react';
+import { Plus, Edit, Shield, Eye } from 'lucide-react';
 import { type Column } from '../components/TableWithPagination';
 import Button from '../components/ui/Button';
 import ListLayout from '../components/common/ListLayout';
-import DeleteModal from '../components/common/DeleteModal';
 import Tooltip from '../components/ui/Tooltip';
 import RoleModal from '../components/role/RoleModal';
 import ViewRoleModal from '../components/role/ViewRoleModal';
-import { useCreateRole, useUpdateRole, useDeleteRole } from '../hooks/useRole';
+import { useCreateRole, useUpdateRole } from '../hooks/useRole';
 import { getRolesPaginated } from '../services/roleService';
 import type { Role } from '../types/role';
 
@@ -17,12 +16,9 @@ export default function RoleManagement() {
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [viewingRole, setViewingRole] = useState<Role | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
 
   const createMutation = useCreateRole();
   const updateMutation = useUpdateRole();
-  const deleteMutation = useDeleteRole();
   
   // Query function for ListLayout
   const fetchRoles = async (
@@ -93,37 +89,12 @@ export default function RoleManagement() {
               <Edit className="w-4 h-4" />
             </button>
           </Tooltip>
-          <Tooltip content="Delete Role" position="top">
-            <button
-              onClick={() => handleDelete(row)}
-              className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 transition-all duration-200 hover:scale-110 active:scale-95 shadow-sm hover:shadow-md"
-              aria-label="Delete role"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </Tooltip>
         </div>
       ),
       sortable: false,
       className: 'text-right',
     },
   ];
-
-  const handleDelete = (role: Role) => {
-    setRoleToDelete(role);
-    setDeleteModalOpen(true);
-  };
-
-  const confirmDelete = () => {
-    if (roleToDelete) {
-      deleteMutation.mutate(roleToDelete.id, {
-        onSuccess: () => {
-          setDeleteModalOpen(false);
-          setRoleToDelete(null);
-        },
-      });
-    }
-  };
 
   const handleRoleSubmit = (data: any) => {
     if (editingRole) {
@@ -198,18 +169,6 @@ export default function RoleManagement() {
           setViewingRole(null);
         }}
         role={viewingRole}
-      />
-
-      <DeleteModal
-        isOpen={deleteModalOpen}
-        onClose={() => {
-          setDeleteModalOpen(false);
-          setRoleToDelete(null);
-        }}
-        onConfirm={confirmDelete}
-        title="Delete Role"
-        message={`Are you sure you want to delete the role "${roleToDelete?.name}"? This action cannot be undone.`}
-        isLoading={deleteMutation.isPending}
       />
     </>
   );

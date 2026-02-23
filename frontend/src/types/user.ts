@@ -3,7 +3,7 @@ import type { UserFormData } from '../validation/user';
 export type UserStatus = 'active' | 'inactive' | 'suspended';
 
 export interface User {
-  id: number;
+  id: string; // UUID
   username: string;
   email: string;
   password_hash?: string; // Not exposed in forms, but part of schema
@@ -15,7 +15,7 @@ export interface User {
   deleted_at: string | null;
   // Roles are now in a separate many-to-many table (user_roles)
   // This field is for backward compatibility and display purposes
-  roles?: Array<{ id: number; name: string }>;
+  roles?: Array<{ id: string; name: string }>; // UUID
 }
 
 export interface PaginatedUsersResponse {

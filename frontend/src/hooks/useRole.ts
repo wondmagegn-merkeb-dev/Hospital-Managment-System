@@ -32,7 +32,7 @@ export const useRoles = () => {
 export const useCreateRole = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: { name: string; description?: string | null; permissionIds?: number[] }) => createRole(data),
+    mutationFn: (data: { name: string; description?: string | null; permissions?: Record<string, string[]> }) => createRole(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['roles'] });
       queryClient.invalidateQueries({ queryKey: ['rolePermissions'] });
@@ -43,7 +43,7 @@ export const useCreateRole = () => {
 export const useUpdateRole = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<{ name: string; description?: string | null; permissionIds?: number[] }> }) =>
+    mutationFn: ({ id, data }: { id: string; data: Partial<{ name: string; description?: string | null; permissions?: Record<string, string[]> }> }) =>
       updateRole(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['roles'] });
@@ -55,7 +55,7 @@ export const useUpdateRole = () => {
 export const useDeleteRole = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => deleteRole(id),
+    mutationFn: (id: string) => deleteRole(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['roles'] });
     },

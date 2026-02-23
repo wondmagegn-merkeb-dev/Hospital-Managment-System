@@ -11,7 +11,7 @@ import type { Role, Permission } from '../../types/role';
 interface RoleModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: RoleFormData & { permissionIds?: number[] }) => void;
+  onSubmit: (data: RoleFormData & { permissions?: Record<string, string[]> }) => void;
   editingRole?: Role | null;
   isLoading?: boolean;
 }
@@ -60,12 +60,29 @@ export default function RoleModal({
   // Reset form and permissions when modal opens/closes or editingRole changes
   useEffect(() => {
     if (isOpen) {
-      if (editingRole && rolePermissions) {
+      if (editingRole) {
         reset({
           name: editingRole.name,
           description: editingRole.description || '',
         });
-        setSelectedPermissions(rolePermissions.map(rp => rp.permission_id));
+        // Convert permissions dictionary to permission IDs
+        if (editingRole.permissions && permissions) {
+          const permissionIds: number[] = [];
+          Object.entries(editingRole.permissions).forEach(([resource, actions]) => {
+            actions.forEach(action => {
+              const permissionName = `${action}_${resource}`;
+              const permission = permissions.find(p => p.name === permissionName);
+              if (permission && !permissionIds.includes(permission.id)) {
+                permissionIds.push(permission.id);
+              }
+            });
+          });
+          setSelectedPermissions(permissionIds);
+        } else if (rolePermissions) {
+          setSelectedPermissions(rolePermissions.map(rp => rp.permission_id));
+        } else {
+          setSelectedPermissions([]);
+        }
       } else {
         reset({
           name: '',
@@ -74,7 +91,7 @@ export default function RoleModal({
         setSelectedPermissions([]);
       }
     }
-  }, [isOpen, editingRole, rolePermissions, reset]);
+  }, [isOpen, editingRole, rolePermissions, permissions, reset]);
 
   const togglePermission = (permissionId: number) => {
     setSelectedPermissions(prev =>
@@ -141,9 +158,34 @@ export default function RoleModal({
   };
 
   const onFormSubmit = (data: RoleFormData) => {
+    // Convert permission IDs to permissions dictionary format expected by backend
+    // Format: { resource: ['action1', 'action2'], ... }
+    const permissionsDict: Record<string, string[]> = {};
+    
+    if (permissions && selectedPermissions.length > 0) {
+      selectedPermissions.forEach(permissionId => {
+        const permission = permissions.find(p => p.id === permissionId);
+        if (permission) {
+          // Parse permission name to extract action and resource
+          const parts = permission.name.split('_');
+          if (parts.length >= 2) {
+            const action = parts[0]; // create, update, delete, view, assign
+            const resource = parts.slice(1).join('_'); // user, role, patient, etc.
+            
+            if (!permissionsDict[resource]) {
+              permissionsDict[resource] = [];
+            }
+            if (!permissionsDict[resource].includes(action)) {
+              permissionsDict[resource].push(action);
+            }
+          }
+        }
+      });
+    }
+    
     onSubmit({
       ...data,
-      permissionIds: selectedPermissions,
+      permissions: permissionsDict,
     });
   };
 

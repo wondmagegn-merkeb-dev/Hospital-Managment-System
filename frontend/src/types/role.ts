@@ -1,7 +1,8 @@
 export interface Role {
-  id: number;
+  id: string; // UUID
   name: string;
   description: string | null;
+  permissions?: Record<string, string[]>; // Permissions as JSONB
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -18,15 +19,15 @@ export interface Permission {
 }
 
 export interface UserRole {
-  user_id: number;
-  role_id: number;
+  user_id: string; // UUID
+  role_id: string; // UUID
   assigned_at: string;
   // Joined data (optional, for display)
   role?: Role;
 }
 
 export interface RolePermission {
-  role_id: number;
+  role_id: string; // UUID
   permission_id: number;
   assigned_at: string;
   // Joined data (optional, for display)

@@ -1,13 +1,12 @@
 import { useState } from 'react';
-import { Plus, Edit, Trash2, Eye, Users, UserCheck, UserX } from 'lucide-react';
+import { Plus, Edit, Eye, Users, UserCheck, UserX } from 'lucide-react';
 import { type Column } from '../components/TableWithPagination';
 import Button from '../components/ui/Button';
 import ListLayout, { type StatItem } from '../components/common/ListLayout';
-import DeleteModal from '../components/common/DeleteModal';
 import Tooltip from '../components/ui/Tooltip';
 import UserModal from '../components/user/UserModal';
 import ViewUserModal from '../components/user/ViewUserModal';
-import { useCreateUser, useUpdateUser, useDeleteUser, useUsersQuery } from '../hooks/useUser';
+import { useCreateUser, useUpdateUser, useUsersQuery } from '../hooks/useUser';
 import type { User } from '../types/user';
 
 export default function UserManagement() {
@@ -17,12 +16,9 @@ export default function UserManagement() {
   const [viewingUser, setViewingUser] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
   const createMutation = useCreateUser();
   const updateMutation = useUpdateUser();
-  const deleteMutation = useDeleteUser();
   const fetchUsers = useUsersQuery(searchTerm, roleFilter);
 
   const roles = ['admin', 'doctor', 'nurse', 'receptionist'];
@@ -117,15 +113,6 @@ export default function UserManagement() {
               <Edit className="w-4 h-4" />
             </button>
           </Tooltip>
-          <Tooltip content="Delete User" position="top">
-            <button
-              onClick={() => handleDelete(row)}
-              className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 transition-all duration-200 hover:scale-110 active:scale-95 shadow-sm hover:shadow-md"
-              aria-label="Delete user"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </Tooltip>
         </div>
       ),
       sortable: false,
@@ -141,22 +128,6 @@ export default function UserManagement() {
   const handleEdit = (user: User) => {
     setEditingUser(user);
     setIsModalOpen(true);
-  };
-
-  const handleDelete = (user: User) => {
-    setUserToDelete(user);
-    setDeleteModalOpen(true);
-  };
-
-  const confirmDelete = () => {
-    if (userToDelete) {
-      deleteMutation.mutate(userToDelete.id, {
-        onSuccess: () => {
-          setDeleteModalOpen(false);
-          setUserToDelete(null);
-        },
-      });
-    }
   };
 
   const handleUserSubmit = (data: any) => {
@@ -274,20 +245,6 @@ export default function UserManagement() {
           setViewingUser(null);
         }}
         user={viewingUser}
-      />
-
-      {/* Delete Confirmation Modal */}
-      <DeleteModal
-        isOpen={deleteModalOpen}
-        onClose={() => {
-          setDeleteModalOpen(false);
-          setUserToDelete(null);
-        }}
-        onConfirm={confirmDelete}
-        title="Delete User"
-        message="Are you sure you want to delete this user? This action cannot be undone and all associated data will be permanently removed."
-        itemName={userToDelete ? (userToDelete.full_name || userToDelete.username) : undefined}
-        isLoading={deleteMutation.isPending}
       />
     </>
   );
