@@ -1,8 +1,6 @@
 import { X } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
 import Button from '../ui/Button';
-import { getRolePermissions } from '../../services/roleService';
-import type { Role, Permission } from '../../types/role';
+import type { Role } from '../../types/role';
 
 interface ViewRoleModalProps {
   isOpen: boolean;
@@ -15,48 +13,25 @@ export default function ViewRoleModal({
   onClose,
   role,
 }: ViewRoleModalProps) {
-  // Fetch role permissions
-  const { data: rolePermissions } = useQuery({
-    queryKey: ['rolePermissions', role?.id],
-    queryFn: () => role ? getRolePermissions(role.id) : Promise.resolve([]),
-    enabled: isOpen && !!role,
-  });
-
   if (!isOpen || !role) return null;
 
-  // Parse permission name to extract action and resource
-  const parsePermission = (name: string) => {
-    const parts = name.split('_');
-    if (parts.length >= 2) {
-      const action = parts[0];
-      const resource = parts.slice(1).join('_');
-      return { action, resource };
-    }
-    return { action: name, resource: '' };
-  };
+  // Permissions come directly from the role (backend stores as JSONB: { resource: [actions] })
+  const permissions = role.permissions || {};
+  const permissionsByResource = Object.entries(permissions).filter(
+    ([_, actions]) => actions && actions.length > 0
+  );
+  const totalPermissionCount = permissionsByResource.reduce(
+    (sum, [_, actions]) => sum + actions.length,
+    0
+  );
 
-  // Group permissions by module, then by resource
-  const permissionsByModule = (rolePermissions || []).reduce((acc, rp) => {
-    if (!rp.permission) return acc;
-    const permission = rp.permission;
-    const module = permission.module || 'Other';
-    if (!acc[module]) {
-      acc[module] = {};
-    }
-    const { resource } = parsePermission(permission.name);
-    if (!acc[module][resource]) {
-      acc[module][resource] = [];
-    }
-    acc[module][resource].push(permission);
-    return acc;
-  }, {} as Record<string, Record<string, Permission[]>>);
-
-  // CRUD action labels
+  // CRUD action labels (backend uses 'read' but we display as 'View')
   const actionLabels: Record<string, string> = {
     create: 'Create',
     update: 'Update',
     delete: 'Delete',
     view: 'View',
+    read: 'View',
     assign: 'Assign',
   };
 
@@ -145,47 +120,34 @@ export default function ViewRoleModal({
           {/* Permissions Section */}
           <div>
             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">
-              Permissions ({rolePermissions?.length || 0})
+              Permissions ({totalPermissionCount})
             </label>
-            {rolePermissions && rolePermissions.length > 0 ? (
+            {permissionsByResource.length > 0 ? (
               <div className="border-2 border-gray-200 rounded-xl p-4 bg-gray-50 max-h-96 overflow-y-auto">
-                <div className="space-y-5">
-                  {Object.entries(permissionsByModule).map(([module, resources]) => (
-                    <div key={module} className="border-b border-gray-200 last:border-b-0 pb-5 last:pb-0">
-                      <h4 className="font-bold text-gray-900 text-base mb-3">
-                        {module}
-                      </h4>
-                      <div className="space-y-4 pl-2">
-                        {Object.entries(resources).map(([resource, resourcePermissions]) => (
-                          <div key={resource} className="bg-white rounded-lg p-3 border border-gray-200">
-                            <h5 className="font-semibold text-gray-800 text-sm mb-2">
-                              {formatResource(resource)}
-                            </h5>
-                            <div className="flex flex-wrap gap-2">
-                              {resourcePermissions
-                                .sort((a, b) => {
-                                  const { action: aAction } = parsePermission(a.name);
-                                  const { action: bAction } = parsePermission(b.name);
-                                  const order = ['create', 'view', 'update', 'delete', 'assign'];
-                                  return order.indexOf(aAction) - order.indexOf(bAction);
-                                })
-                                .map((permission) => {
-                                  const { action } = parsePermission(permission.name);
-                                  return (
-                                    <span
-                                      key={permission.id}
-                                      className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                                    >
-                                      {actionLabels[action] || action.charAt(0).toUpperCase() + action.slice(1)}
-                                    </span>
-                                  );
-                                })}
-                            </div>
-                          </div>
-                        ))}
+                <div className="space-y-4">
+                  {permissionsByResource.map(([resource, actions]) => {
+                    const sortedActions = [...actions].sort((a, b) => {
+                      const order = ['create', 'view', 'read', 'update', 'delete', 'assign'];
+                      return order.indexOf(a) - order.indexOf(b);
+                    });
+                    return (
+                      <div key={resource} className="bg-white rounded-lg p-3 border border-gray-200">
+                        <h5 className="font-semibold text-gray-800 text-sm mb-2">
+                          {formatResource(resource)}
+                        </h5>
+                        <div className="flex flex-wrap gap-2">
+                          {sortedActions.map((action) => (
+                            <span
+                              key={`${resource}-${action}`}
+                              className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                            >
+                              {actionLabels[action] || action.charAt(0).toUpperCase() + action.slice(1)}
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ) : (

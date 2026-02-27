@@ -15,7 +15,7 @@ export interface User {
   deleted_at: string | null;
   // Roles are now in a separate many-to-many table (user_roles)
   // This field is for backward compatibility and display purposes
-  roles?: Array<{ id: string; name: string }>; // UUID
+  roles?: Array<{ id: string; name: string; description?: string }>; // UUID
 }
 
 export interface PaginatedUsersResponse {

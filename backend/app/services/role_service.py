@@ -7,6 +7,7 @@ from uuid import UUID
 
 from ..models.role import Role
 from ..models.user import User, UserRole
+from ..config.constants import SUPER_ADMIN_ROLE_NAME
 from ..schemas.role import (
     RoleCreate, RoleUpdate, RoleResponse,
     PaginatedRolesResponse, UserRoleResponse
@@ -81,6 +82,11 @@ class RoleService:
     @staticmethod
     def create_role(role_data: RoleCreate, db: Session) -> RoleResponse:
         """Create a new role"""
+        if role_data.name.strip().lower() == SUPER_ADMIN_ROLE_NAME:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Cannot create super_admin role. It is a system role."
+            )
         # Check if role name already exists
         existing_role = db.query(Role).filter(
             Role.name == role_data.name,
@@ -114,6 +120,11 @@ class RoleService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Role not found"
+            )
+        if role.name == SUPER_ADMIN_ROLE_NAME:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Cannot edit super_admin role. It is a system role."
             )
         
         # Check if role name already exists (excluding current role)
@@ -154,6 +165,11 @@ class RoleService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Role not found"
             )
+        if role.name == SUPER_ADMIN_ROLE_NAME:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Cannot delete super_admin role. It is a system role."
+            )
         
         db.delete(role)
         db.commit()
@@ -183,6 +199,11 @@ class RoleService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Role not found"
+            )
+        if role.name == SUPER_ADMIN_ROLE_NAME:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Cannot assign super_admin role via API. Use the create_super_admin script."
             )
         
         # Check if already assigned

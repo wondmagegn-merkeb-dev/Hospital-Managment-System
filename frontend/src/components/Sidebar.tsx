@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -10,61 +10,94 @@ import {
   ChevronRight,
   ChevronDown,
 } from 'lucide-react';
+import { usePermissions } from '../hooks/usePermissions';
 
 interface SidebarProps {
   isCollapsed: boolean;
   onToggle: () => void;
 }
 
+interface SubMenuItem {
+  label: string;
+  path: string;
+  permission?: { resource: string; action: string };
+}
+
 interface MenuItem {
   icon: any;
   label: string;
   path?: string;
-  submenu?: { label: string; path: string }[];
+  permission?: { resource: string; action: string } | null;
+  submenu?: SubMenuItem[];
 }
 
 const menuItems: MenuItem[] = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
+  { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', permission: null },
   { 
     icon: Users, 
     label: 'Patients', 
+    permission: { resource: 'patient', action: 'read' },
     submenu: [
-      { label: 'All Patients', path: '/patients' },
-      { label: 'Add Patient', path: '/patients/new' },
-      { label: 'Patient Records', path: '/patients/records' },
+      { label: 'All Patients', path: '/patients', permission: { resource: 'patient', action: 'read' } },
+      { label: 'Add Patient', path: '/patients/new', permission: { resource: 'patient', action: 'create' } },
+      { label: 'Patient Records', path: '/patients/records', permission: { resource: 'patient', action: 'read' } },
     ]
   },
   { 
     icon: UserCog, 
     label: 'User Management', 
+    permission: { resource: 'user', action: 'read' },
     submenu: [
-      { label: 'Users', path: '/users' },
-      { label: 'Roles & Permissions', path: '/roles' },
+      { label: 'Users', path: '/users', permission: { resource: 'user', action: 'read' } },
+      { label: 'Roles & Permissions', path: '/roles', permission: { resource: 'role', action: 'read' } },
     ]
   },
   { 
     icon: Calendar, 
     label: 'Appointments', 
+    permission: { resource: 'appointment', action: 'read' },
     submenu: [
-      { label: 'All Appointments', path: '/appointments' },
-      { label: 'Schedule Appointment', path: '/appointments/new' },
-      { label: 'Calendar View', path: '/appointments/calendar' },
+      { label: 'All Appointments', path: '/appointments', permission: { resource: 'appointment', action: 'read' } },
+      { label: 'Schedule Appointment', path: '/appointments/new', permission: { resource: 'appointment', action: 'create' } },
+      { label: 'Calendar View', path: '/appointments/calendar', permission: { resource: 'appointment', action: 'read' } },
     ]
   },
   { 
     icon: Pill, 
     label: 'Pharmacy', 
+    permission: { resource: 'medicine', action: 'read' },
     submenu: [
-      { label: 'Medicines', path: '/pharmacy' },
-      { label: 'Inventory', path: '/pharmacy/inventory' },
-      { label: 'Orders', path: '/pharmacy/orders' },
+      { label: 'Medicines', path: '/pharmacy', permission: { resource: 'medicine', action: 'read' } },
+      { label: 'Inventory', path: '/pharmacy/inventory', permission: { resource: 'medicine', action: 'read' } },
+      { label: 'Orders', path: '/pharmacy/orders', permission: { resource: 'medicine', action: 'read' } },
     ]
   },
 ];
 
 export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const location = useLocation();
+  const { can } = usePermissions();
   const [openSubmenus, setOpenSubmenus] = useState<Record<string, boolean>>({});
+
+  const visibleMenuItems = useMemo(() => {
+    return menuItems
+      .map((item) => {
+        if (item.submenu) {
+          const visibleSubs = item.submenu.filter((sub) => {
+            const p = sub.permission;
+            if (!p) return true;
+            return can.any(p.resource, p.action);
+          });
+          return { ...item, submenu: visibleSubs };
+        }
+        return item;
+      })
+      .filter((item) => {
+        if (item.permission === null || item.permission === undefined) return true;
+        if (item.submenu) return item.submenu.length > 0;
+        return can.any(item.permission.resource, item.permission.action);
+      });
+  }, [can]);
 
   const toggleSubmenu = (label: string) => {
     setOpenSubmenus((prev) => ({
@@ -131,7 +164,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {menuItems.map((item) => {
+        {visibleMenuItems.map((item) => {
           const Icon = item.icon;
           const itemIsActive = isItemActive(item);
           const isSubmenuOpen = openSubmenus[item.label] || (isCollapsed ? false : hasActiveSubmenu(item));

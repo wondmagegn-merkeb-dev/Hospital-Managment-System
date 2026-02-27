@@ -1,6 +1,7 @@
 import { X } from 'lucide-react';
 import Button from '../ui/Button';
 import type { User } from '../../types/user';
+import Tooltip from '../ui/Tooltip';
 
 interface ViewUserModalProps {
   isOpen: boolean;
@@ -85,12 +86,20 @@ export default function ViewUserModal({
 
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                Role
+                Roles
               </label>
-              <div>
-                <span className="inline-flex px-3 py-1 text-sm font-medium rounded-full bg-primary/10 text-primary">
-                  {user.role}
-                </span>
+              <div className="flex flex-wrap gap-1">
+                {user.roles && user.roles.length > 0 ? (
+                  user.roles.map((role) => (
+                    <Tooltip key={role.id} content={role.description || ''} position="top">
+                      <span className="inline-flex px-3 py-1 text-sm font-medium rounded-full bg-blue-100 text-blue-800">
+                        {role.name}
+                      </span>
+                    </Tooltip>
+                  ))
+                ) : (
+                  <span className="text-gray-500">No roles assigned</span>
+                )}
               </div>
             </div>
 

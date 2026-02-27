@@ -9,13 +9,13 @@ export interface Role {
 }
 
 export interface Permission {
-  id: number;
-  name: string;
+  id?: number; // Optional - config-based permissions use name as identifier
+  name: string; // Unique identifier (e.g. "create_user")
   description: string | null;
   module: string; // Module name (e.g., 'User Management', 'Patients', etc.)
-  created_at: string;
-  updated_at: string;
-  deleted_at: string | null;
+  created_at?: string;
+  updated_at?: string;
+  deleted_at?: string | null;
 }
 
 export interface UserRole {

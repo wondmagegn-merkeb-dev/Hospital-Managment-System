@@ -18,10 +18,14 @@ class UserBase(BaseModel):
     full_name: Optional[str] = Field(None, max_length=150)
 
 
-class UserCreate(UserBase):
-    password: str = Field(..., min_length=6)
+class UserCreate(BaseModel):
+    """Username and password are optional - backend auto-generates them and emails credentials to user"""
+    email: EmailStr = Field(..., max_length=100)
+    full_name: Optional[str] = Field(None, max_length=150)
+    password: Optional[str] = Field(None, min_length=6)  # Optional: backend generates if not provided
     status: str = Field(default="active", pattern="^(active|inactive|suspended)$")
     role_ids: Optional[List[UUID]] = Field(default=None)
+    username: Optional[str] = Field(None, min_length=3, max_length=50)
 
 
 class UserUpdate(BaseModel):
@@ -35,6 +39,7 @@ class UserUpdate(BaseModel):
 
 class UserResponse(UserBase):
     id: UUID
+    email: str = Field(..., max_length=100)  # Override: use str to allow .local and internal domains
     status: str
     created_at: datetime
     updated_at: datetime

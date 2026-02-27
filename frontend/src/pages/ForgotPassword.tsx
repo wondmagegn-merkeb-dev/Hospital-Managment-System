@@ -1,17 +1,21 @@
 import { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import api from '../services/api';
 
 interface ForgotPasswordFormData {
   email: string;
 }
 
 export default function ForgotPassword() {
-  const [step, setStep] = useState<'email' | 'code'>('email');
+  const navigate = useNavigate();
+  const [step, setStep] = useState<'email' | 'code' | 'password'>('email');
   const [countdown, setCountdown] = useState(0);
   const [code, setCode] = useState<string[]>(['', '', '', '', '', '']);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const { register, handleSubmit, formState: { errors }, getValues } = useForm<ForgotPasswordFormData>();
 
@@ -25,16 +29,16 @@ export default function ForgotPassword() {
 
   const sendCode = async (data: ForgotPasswordFormData) => {
     setIsLoading(true);
-    setError(null);
     try {
-      // TODO: Implement API call to send verification code
-      console.log('Sending code to:', data.email);
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await api.post('/auth/forgot-password', { email: data.email }, { timeout: 15000 });
+      toast.success('Verification code sent to your email');
       setStep('code');
       setCountdown(300); // 5 minutes countdown
-    } catch (error: any) {
-      setError(error.response?.data?.detail || 'Failed to send verification code. Please try again.');
+    } catch (err: any) {
+      const message = err.response?.data?.detail
+        || err.message
+        || (err.code === 'ECONNABORTED' ? 'Request timed out. Check your connection and try again.' : 'Failed to send verification code. Please try again.');
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -76,26 +80,42 @@ export default function ForgotPassword() {
     }
   };
 
-  const handleCodeSubmit = async () => {
+  const goToPasswordStep = () => {
     const verificationCode = code.join('');
     if (verificationCode.length !== 6) {
-      setError('Please enter the complete 6-digit code');
+      toast.error('Please enter the complete 6-digit code');
+      return;
+    }
+    setStep('password');
+  };
+
+  const handlePasswordSubmit = async () => {
+    if (newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error('Passwords do not match');
       return;
     }
 
     setIsLoading(true);
-    setError(null);
     try {
-      // TODO: Implement API call to verify code
-      console.log('Verifying code:', verificationCode);
       const email = getValues('email');
-      console.log('Email:', email);
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      // TODO: Navigate to reset password page
-    } catch (error: any) {
-      setError(error.response?.data?.detail || 'Invalid code. Please try again.');
+      const verificationCode = code.join('');
+      await api.post('/auth/reset-password', {
+        email,
+        otp_code: verificationCode,
+        new_password: newPassword,
+      });
+      toast.success('Password reset successfully. You can now login.');
+      navigate('/login');
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Invalid code or failed to reset. Please try again.');
       setCode(['', '', '', '', '', '']);
+      setNewPassword('');
+      setConfirmPassword('');
+      setStep('code');
       inputRefs.current[0]?.focus();
     } finally {
       setIsLoading(false);
@@ -112,16 +132,17 @@ export default function ForgotPassword() {
     }
 
     setIsLoading(true);
-    setError(null);
     try {
-      // TODO: Implement API call to resend code
-      console.log('Resending code to:', email);
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await api.post('/auth/forgot-password', { email }, { timeout: 15000 });
+      toast.success('Verification code resent to your email');
       setCountdown(300); // Reset countdown to 5 minutes
       setCode(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
-    } catch (error: any) {
-      setError(error.response?.data?.detail || 'Failed to resend code. Please try again.');
+    } catch (err: any) {
+      const message = err.response?.data?.detail
+        || err.message
+        || (err.code === 'ECONNABORTED' ? 'Request timed out. Check your connection and try again.' : 'Failed to resend code. Please try again.');
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -151,18 +172,11 @@ export default function ForgotPassword() {
                 </h1>
               </div>
               <p className="text-gray-600 text-lg">
-                {step === 'email' 
-                  ? 'Enter your email to receive a verification code'
-                  : 'Enter the 6-digit code sent to your email'
-                }
+                {step === 'email' && 'Enter your email to receive a verification code'}
+                {step === 'code' && 'Enter the 6-digit code sent to your email'}
+                {step === 'password' && 'Create your new password'}
               </p>
             </div>
-
-            {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
-                {error}
-              </div>
-            )}
 
             {step === 'email' ? (
               <form onSubmit={handleSubmit(sendCode)} className="space-y-5">
@@ -200,7 +214,7 @@ export default function ForgotPassword() {
                   </Link>
                 </div>
               </form>
-            ) : (
+            ) : step === 'code' ? (
               <div className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium mb-4 text-center text-gray-700">
@@ -224,9 +238,7 @@ export default function ForgotPassword() {
                 </div>
 
                 <div className="text-center space-y-2">
-                  <p className="text-sm text-gray-600">
-                    Didn't receive the code?
-                  </p>
+                  <p className="text-sm text-gray-600">Didn't receive the code?</p>
                   {countdown > 0 ? (
                     <p className="text-sm text-gray-600">
                       Resend code in <span className="font-semibold text-indigo-600 text-lg">{formatCountdown(countdown)}</span>
@@ -245,11 +257,11 @@ export default function ForgotPassword() {
 
                 <button
                   type="button"
-                  onClick={handleCodeSubmit}
-                  disabled={isLoading || code.some(d => !d)}
+                  onClick={goToPasswordStep}
+                  disabled={code.some(d => !d)}
                   className="w-full px-4 py-3 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-xl hover:from-indigo-600 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
                 >
-                  {isLoading ? 'Verifying...' : 'Verify Code'}
+                  Continue
                 </button>
 
                 <div className="text-center space-y-2">
@@ -261,10 +273,57 @@ export default function ForgotPassword() {
                     Change Email
                   </button>
                   <div>
-                    <Link
-                      to="/login"
-                      className="text-sm text-indigo-600 hover:text-indigo-700 hover:underline font-medium transition-colors"
-                    >
+                    <Link to="/login" className="text-sm text-indigo-600 hover:text-indigo-700 hover:underline font-medium transition-colors">
+                      Back to Login
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-gray-700">New Password</label>
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-indigo-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm"
+                      placeholder="Enter new password (min 6 characters)"
+                      minLength={6}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-gray-700">Confirm Password</label>
+                    <input
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-indigo-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm"
+                      placeholder="Confirm new password"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handlePasswordSubmit}
+                  disabled={isLoading || newPassword.length < 6 || newPassword !== confirmPassword}
+                  className="w-full px-4 py-3 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-xl hover:from-indigo-600 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                >
+                  {isLoading ? 'Resetting...' : 'Reset Password'}
+                </button>
+
+                <div className="text-center space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => setStep('code')}
+                    className="text-sm text-gray-600 hover:text-gray-800 font-medium transition-colors"
+                  >
+                    Back to Code
+                  </button>
+                  <div>
+                    <Link to="/login" className="text-sm text-indigo-600 hover:text-indigo-700 hover:underline font-medium transition-colors">
                       Back to Login
                     </Link>
                   </div>

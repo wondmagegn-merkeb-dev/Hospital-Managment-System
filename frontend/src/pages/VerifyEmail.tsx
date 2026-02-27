@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
 import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 interface VerifyEmailFormData {
   email: string;
@@ -12,10 +14,10 @@ export default function VerifyEmail() {
   const [countdown, setCountdown] = useState(0);
   const [code, setCode] = useState<string[]>(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const navigate = useNavigate();
+  const { refreshUser } = useAuth();
   const [searchParams] = useSearchParams();
   const { register, handleSubmit, formState: { errors }, getValues } = useForm<VerifyEmailFormData>({
     defaultValues: {
@@ -33,13 +35,12 @@ export default function VerifyEmail() {
 
   const sendCode = async (data: VerifyEmailFormData) => {
     setIsLoading(true);
-    setError(null);
     try {
       await api.post('/auth/resend-verification', { email: data.email });
       setStep('code');
       setCountdown(600); // 10 minutes countdown
-    } catch (error: any) {
-      setError(error.response?.data?.detail || 'Failed to send verification code. Please try again.');
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Failed to send verification code. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -84,12 +85,11 @@ export default function VerifyEmail() {
   const handleCodeSubmit = async () => {
     const verificationCode = code.join('');
     if (verificationCode.length !== 6) {
-      setError('Please enter the complete 6-digit code');
+      toast.error('Please enter the complete 6-digit code');
       return;
     }
 
     setIsLoading(true);
-    setError(null);
     try {
       const email = getValues('email');
       await api.post('/auth/verify-email', {
@@ -97,11 +97,18 @@ export default function VerifyEmail() {
         otp_code: verificationCode
       });
       setSuccess(true);
+      const updatedUser = await refreshUser();
       setTimeout(() => {
-        navigate('/login');
-      }, 2000);
-    } catch (error: any) {
-      setError(error.response?.data?.detail || 'Invalid code. Please try again.');
+        if (updatedUser?.is_first_login) {
+          navigate('/change-password');
+        } else if (updatedUser) {
+          navigate('/dashboard');
+        } else {
+          navigate('/login');
+        }
+      }, 1500);
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Invalid code. Please try again.');
       setCode(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
     } finally {
@@ -119,14 +126,13 @@ export default function VerifyEmail() {
     }
 
     setIsLoading(true);
-    setError(null);
     try {
       await api.post('/auth/resend-verification', { email });
       setCountdown(600); // Reset countdown to 10 minutes
       setCode(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
-    } catch (error: any) {
-      setError(error.response?.data?.detail || 'Failed to resend code. Please try again.');
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Failed to resend code. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -182,12 +188,6 @@ export default function VerifyEmail() {
                 }
               </p>
             </div>
-
-            {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
-                {error}
-              </div>
-            )}
 
             {step === 'email' ? (
               <form onSubmit={handleSubmit(sendCode)} className="space-y-5">

@@ -5,7 +5,7 @@ import { X } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import Button from '../ui/Button';
 import { createRoleSchema, updateRoleSchema, type RoleFormData } from '../../validation/role';
-import { getPermissions, getRolePermissions } from '../../services/roleService';
+import { getPermissions } from '../../services/roleService';
 import type { Role, Permission } from '../../types/role';
 
 interface RoleModalProps {
@@ -23,20 +23,13 @@ export default function RoleModal({
   editingRole,
   isLoading = false,
 }: RoleModalProps) {
-  const [selectedPermissions, setSelectedPermissions] = useState<number[]>([]);
+  const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
 
-  // Fetch all permissions
+  // Fetch all permissions (from permissions.json config)
   const { data: permissions } = useQuery({
     queryKey: ['permissions', 'all'],
     queryFn: () => getPermissions(),
     enabled: isOpen,
-  });
-
-  // Fetch role permissions when editing
-  const { data: rolePermissions } = useQuery({
-    queryKey: ['rolePermissions', editingRole?.id],
-    queryFn: () => editingRole ? getRolePermissions(editingRole.id) : Promise.resolve([]),
-    enabled: isOpen && !!editingRole,
   });
 
   const {
@@ -65,21 +58,18 @@ export default function RoleModal({
           name: editingRole.name,
           description: editingRole.description || '',
         });
-        // Convert permissions dictionary to permission IDs
+        // Convert permissions dictionary (from API JSON) to permission names
         if (editingRole.permissions && permissions) {
-          const permissionIds: number[] = [];
+          const names: string[] = [];
           Object.entries(editingRole.permissions).forEach(([resource, actions]) => {
-            actions.forEach(action => {
+            (actions || []).forEach(action => {
               const permissionName = `${action}_${resource}`;
-              const permission = permissions.find(p => p.name === permissionName);
-              if (permission && !permissionIds.includes(permission.id)) {
-                permissionIds.push(permission.id);
+              if (permissions.some(p => p.name === permissionName) && !names.includes(permissionName)) {
+                names.push(permissionName);
               }
             });
           });
-          setSelectedPermissions(permissionIds);
-        } else if (rolePermissions) {
-          setSelectedPermissions(rolePermissions.map(rp => rp.permission_id));
+          setSelectedPermissions(names);
         } else {
           setSelectedPermissions([]);
         }
@@ -91,33 +81,29 @@ export default function RoleModal({
         setSelectedPermissions([]);
       }
     }
-  }, [isOpen, editingRole, rolePermissions, permissions, reset]);
+  }, [isOpen, editingRole, permissions, reset]);
 
-  const togglePermission = (permissionId: number) => {
+  const togglePermission = (permissionName: string) => {
     setSelectedPermissions(prev =>
-      prev.includes(permissionId)
-        ? prev.filter(id => id !== permissionId)
-        : [...prev, permissionId]
+      prev.includes(permissionName)
+        ? prev.filter(n => n !== permissionName)
+        : [...prev, permissionName]
     );
   };
 
   const toggleModulePermissions = (modulePermissions: Permission[]) => {
     if (!modulePermissions || modulePermissions.length === 0) return;
     
-    const modulePermissionIds = modulePermissions.map(p => p.id);
-    const allSelected = modulePermissionIds.every(id => selectedPermissions.includes(id));
+    const moduleNames = modulePermissions.map(p => p.name);
+    const allSelected = moduleNames.every(name => selectedPermissions.includes(name));
     
     if (allSelected) {
-      // Deselect all permissions in this module
-      setSelectedPermissions(prev => prev.filter(id => !modulePermissionIds.includes(id)));
+      setSelectedPermissions(prev => prev.filter(n => !moduleNames.includes(n)));
     } else {
-      // Select all permissions in this module
       setSelectedPermissions(prev => {
         const newSelection = [...prev];
-        modulePermissionIds.forEach(id => {
-          if (!newSelection.includes(id)) {
-            newSelection.push(id);
-          }
+        moduleNames.forEach(name => {
+          if (!newSelection.includes(name)) newSelection.push(name);
         });
         return newSelection;
       });
@@ -127,20 +113,16 @@ export default function RoleModal({
   const toggleResourcePermissions = (resourcePermissions: Permission[]) => {
     if (!resourcePermissions || resourcePermissions.length === 0) return;
     
-    const resourcePermissionIds = resourcePermissions.map(p => p.id);
-    const allSelected = resourcePermissionIds.every(id => selectedPermissions.includes(id));
+    const resourceNames = resourcePermissions.map(p => p.name);
+    const allSelected = resourceNames.every(name => selectedPermissions.includes(name));
     
     if (allSelected) {
-      // Deselect all permissions for this resource
-      setSelectedPermissions(prev => prev.filter(id => !resourcePermissionIds.includes(id)));
+      setSelectedPermissions(prev => prev.filter(n => !resourceNames.includes(n)));
     } else {
-      // Select all permissions for this resource
       setSelectedPermissions(prev => {
         const newSelection = [...prev];
-        resourcePermissionIds.forEach(id => {
-          if (!newSelection.includes(id)) {
-            newSelection.push(id);
-          }
+        resourceNames.forEach(name => {
+          if (!newSelection.includes(name)) newSelection.push(name);
         });
         return newSelection;
       });
@@ -149,12 +131,12 @@ export default function RoleModal({
 
   const areAllModulePermissionsSelected = (modulePermissions: Permission[]): boolean => {
     if (!modulePermissions || modulePermissions.length === 0) return false;
-    return modulePermissions.every(p => selectedPermissions.includes(p.id));
+    return modulePermissions.every(p => selectedPermissions.includes(p.name));
   };
 
   const areAllResourcePermissionsSelected = (resourcePermissions: Permission[]): boolean => {
     if (!resourcePermissions || resourcePermissions.length === 0) return false;
-    return resourcePermissions.every(p => selectedPermissions.includes(p.id));
+    return resourcePermissions.every(p => selectedPermissions.includes(p.name));
   };
 
   const onFormSubmit = (data: RoleFormData) => {
@@ -163,8 +145,8 @@ export default function RoleModal({
     const permissionsDict: Record<string, string[]> = {};
     
     if (permissions && selectedPermissions.length > 0) {
-      selectedPermissions.forEach(permissionId => {
-        const permission = permissions.find(p => p.id === permissionId);
+      selectedPermissions.forEach(permissionName => {
+        const permission = permissions.find(p => p.name === permissionName);
         if (permission) {
           // Parse permission name to extract action and resource
           const parts = permission.name.split('_');
@@ -289,6 +271,7 @@ export default function RoleModal({
                   // CRUD action labels
                   const actionLabels: Record<string, string> = {
                     create: 'Create',
+                    read: 'View',
                     update: 'Update',
                     delete: 'Delete',
                     view: 'View',
@@ -358,20 +341,20 @@ export default function RoleModal({
                                         .sort((a, b) => {
                                           const { action: aAction } = parsePermission(a.name);
                                           const { action: bAction } = parsePermission(b.name);
-                                          const order = ['create', 'view', 'update', 'delete', 'assign'];
+                                          const order = ['create', 'read', 'view', 'update', 'delete', 'assign'];
                                           return order.indexOf(aAction) - order.indexOf(bAction);
                                         })
                                         .map((permission) => {
                                           const { action } = parsePermission(permission.name);
                                           return (
                                             <label
-                                              key={permission.id}
+                                              key={permission.name}
                                               className="flex items-center gap-2 p-2 rounded-md hover:bg-blue-50 cursor-pointer transition-colors border border-gray-200 hover:border-blue-300"
                                             >
                                               <input
                                                 type="checkbox"
-                                                checked={selectedPermissions.includes(permission.id)}
-                                                onChange={() => togglePermission(permission.id)}
+                                                checked={selectedPermissions.includes(permission.name)}
+                                                onChange={() => togglePermission(permission.name)}
                                                 className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 flex-shrink-0"
                                               />
                                               <span className="text-xs font-medium text-gray-700">

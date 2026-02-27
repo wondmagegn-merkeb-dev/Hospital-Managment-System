@@ -1,5 +1,8 @@
-import { useState } from 'react';
-import { Plus, Edit, Eye, Users, UserCheck, UserX } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Plus, Edit, Eye, Users, UserCheck, UserX, UserCircle } from 'lucide-react';
+import { SUPER_ADMIN_ROLE_NAME } from '../config/constants';
+import { toast } from 'sonner';
+import { useQuery } from '@tanstack/react-query';
 import { type Column } from '../components/TableWithPagination';
 import Button from '../components/ui/Button';
 import ListLayout, { type StatItem } from '../components/common/ListLayout';
@@ -7,6 +10,8 @@ import Tooltip from '../components/ui/Tooltip';
 import UserModal from '../components/user/UserModal';
 import ViewUserModal from '../components/user/ViewUserModal';
 import { useCreateUser, useUpdateUser, useUsersQuery } from '../hooks/useUser';
+import { getUsersPaginated } from '../services/userService';
+import { getRoles } from '../services/roleService';
 import type { User } from '../types/user';
 
 export default function UserManagement() {
@@ -21,7 +26,88 @@ export default function UserManagement() {
   const updateMutation = useUpdateUser();
   const fetchUsers = useUsersQuery(searchTerm, roleFilter);
 
-  const roles = ['admin', 'doctor', 'nurse', 'receptionist'];
+  // Fetch roles for filter dropdown
+  const { data: roles } = useQuery({
+    queryKey: ['roles', 'all'],
+    queryFn: () => getRoles(),
+  });
+
+  // Fetch stats - get all users with large page size to calculate stats
+  const { data: statsData } = useQuery({
+    queryKey: ['users', 'stats'],
+    queryFn: () => getUsersPaginated(1, 1000, null, null, '', 'all'),
+    staleTime: 30000, // Cache for 30 seconds
+  });
+
+  // Calculate stats from fetched data
+  const stats: StatItem[] = useMemo(() => {
+    if (!statsData) {
+      return [
+        {
+          label: 'Total Users',
+          value: '0',
+          icon: <Users className="w-6 h-6" />,
+          color: 'text-blue-500',
+        },
+        {
+          label: 'Active Users',
+          value: '0',
+          icon: <UserCheck className="w-6 h-6" />,
+          color: 'text-green-500',
+        },
+        {
+          label: 'Inactive Users',
+          value: '0',
+          icon: <UserX className="w-6 h-6" />,
+          color: 'text-red-500',
+        },
+        {
+          label: 'Suspended Users',
+          value: '0',
+          icon: <UserCircle className="w-6 h-6" />,
+          color: 'text-yellow-500',
+        },
+      ];
+    }
+
+    const total = statsData.total;
+    const activeCount = statsData.data.filter((user) => user.status === 'active').length;
+    const inactiveCount = statsData.data.filter((user) => user.status === 'inactive').length;
+    const suspendedCount = statsData.data.filter((user) => user.status === 'suspended').length;
+
+    // If we have all users (total <= 1000), use exact counts, otherwise estimate
+    const sampleSize = statsData.data.length;
+    const active = total <= 1000 ? activeCount : Math.round((activeCount / sampleSize) * total);
+    const inactive = total <= 1000 ? inactiveCount : Math.round((inactiveCount / sampleSize) * total);
+    const suspended = total <= 1000 ? suspendedCount : Math.round((suspendedCount / sampleSize) * total);
+
+    return [
+      {
+        label: 'Total Users',
+        value: total.toString(),
+        icon: <Users className="w-6 h-6" />,
+        color: 'text-blue-500',
+      },
+      {
+        label: 'Active Users',
+        value: active.toString(),
+        icon: <UserCheck className="w-6 h-6" />,
+        color: 'text-green-500',
+      },
+      {
+        label: 'Inactive Users',
+        value: inactive.toString(),
+        icon: <UserX className="w-6 h-6" />,
+        color: 'text-red-500',
+      },
+      {
+        label: 'Suspended Users',
+        value: suspended.toString(),
+        icon: <UserCircle className="w-6 h-6" />,
+        color: 'text-yellow-500',
+      },
+    ];
+  }, [statsData]);
 
   // Define table columns with sortable options
   const columns: Column<User>[] = [
@@ -30,11 +116,11 @@ export default function UserManagement() {
       accessor: (row: User) => (
         <div>
           <div className="font-medium">{row.full_name || row.username}</div>
-          <div className="text-sm text-muted-foreground">@{row.username}</div>
+          <div className="text-sm text-blue-500 text-muted-foreground text-ellipsis overflow-hidden whitespace-nowrap max-w-[100px]">{row.username}</div>
         </div>
       ),
       sortable: true,
-      sortKey: 'username',
+      sortKey: 'full_name',
     },
     {
       header: 'Email',
@@ -47,12 +133,11 @@ export default function UserManagement() {
         <div className="flex flex-wrap gap-1">
           {row.roles && row.roles.length > 0 ? (
             row.roles.map((role) => (
-              <span
-                key={role.id}
-                className="px-2 py-1 text-xs font-medium rounded-full bg-primary/10 text-primary"
-              >
-                {role.name}
-              </span>
+              <Tooltip key={role.id} content={role.name} position="top">
+                <span className="px-2 py-1 text-xs font-medium rounded-full bg-primary/10 text-primary ">
+                  {role.name}
+                </span>
+              </Tooltip>
             ))
           ) : (
             <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-500">
@@ -93,28 +178,33 @@ export default function UserManagement() {
     },
     {
       header: 'Actions',
-      accessor: (row: User) => (
-        <div className="flex items-center justify-end gap-2">
-          <Tooltip content="View User" position="top">
-            <button
-              onClick={() => handleView(row)}
-              className="p-2 rounded-lg bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-gray-700 transition-all duration-200 hover:scale-110 active:scale-95 shadow-sm hover:shadow-md"
-              aria-label="View user"
-            >
-              <Eye className="w-4 h-4" />
-            </button>
-          </Tooltip>
-          <Tooltip content="Edit User" position="top">
-            <button
-              onClick={() => handleEdit(row)}
-              className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 transition-all duration-200 hover:scale-110 active:scale-95 shadow-sm hover:shadow-md"
-              aria-label="Edit user"
-            >
-              <Edit className="w-4 h-4" />
-            </button>
-          </Tooltip>
-        </div>
-      ),
+      accessor: (row: User) => {
+        const isSuperAdmin = row.roles?.some((r) => r.name === SUPER_ADMIN_ROLE_NAME);
+        return (
+          <div className="flex items-center justify-end gap-2">
+            <Tooltip content="View User" position="top">
+              <button
+                onClick={() => handleView(row)}
+                className="p-2 rounded-lg bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-gray-700 transition-all duration-200 hover:scale-110 active:scale-95 shadow-sm hover:shadow-md"
+                aria-label="View user"
+              >
+                <Eye className="w-4 h-4" />
+              </button>
+            </Tooltip>
+            {!isSuperAdmin && (
+              <Tooltip content="Edit User" position="top">
+                <button
+                  onClick={() => handleEdit(row)}
+                  className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 transition-all duration-200 hover:scale-110 active:scale-95 shadow-sm hover:shadow-md"
+                  aria-label="Edit user"
+                >
+                  <Edit className="w-4 h-4" />
+                </button>
+              </Tooltip>
+            )}
+          </div>
+        );
+      },
       sortable: false,
       className: 'text-right',
     },
@@ -137,41 +227,38 @@ export default function UserManagement() {
         { id: editingUser.id, data: updateData },
         {
           onSuccess: () => {
+            toast.success('User updated successfully');
             setIsModalOpen(false);
             setEditingUser(null);
+          },
+          onError: (err) => {
+            const message = getErrorMessage(err);
+            toast.error(message);
           },
         }
       );
     } else {
       createMutation.mutate(data, {
         onSuccess: () => {
+          toast.success('User created successfully. Login credentials sent to their email.');
           setIsModalOpen(false);
+        },
+        onError: (err) => {
+          const message = getErrorMessage(err);
+          toast.error(message);
         },
       });
     }
   };
 
-  // Calculate stats (you can fetch these from API or calculate from data)
-  const stats: StatItem[] = [
-    {
-      label: 'Total Users',
-      value: '20',
-      icon: <Users className="w-6 h-6" />,
-      color: 'text-blue-500',
-    },
-    {
-      label: 'Active Users',
-      value: '17',
-      icon: <UserCheck className="w-6 h-6" />,
-      color: 'text-green-500',
-    },
-    {
-      label: 'Inactive Users',
-      value: '3',
-      icon: <UserX className="w-6 h-6" />,
-      color: 'text-red-500',
-    },
-  ];
+  const getErrorMessage = (err: unknown) => {
+    const detail = (err as any)?.response?.data?.detail;
+    if (typeof detail === 'string') return detail;
+    if (Array.isArray(detail)) {
+      return detail.map((d: any) => d?.msg || d?.message || JSON.stringify(d)).join(', ');
+    }
+    return (err as any)?.message || 'An error occurred';
+  };
 
   return (
     <>
@@ -203,10 +290,12 @@ export default function UserManagement() {
             value: roleFilter,
             options: [
               { label: 'All Roles', value: 'all' },
-              ...roles.map((role) => ({
-                label: role.charAt(0).toUpperCase() + role.slice(1),
-                value: role,
-              })),
+              ...(roles || [])
+                .filter((role) => role.name !== SUPER_ADMIN_ROLE_NAME)
+                .map((role) => ({
+                  label: role.name.charAt(0).toUpperCase() + role.name.slice(1),
+                  value: role.name,
+                })),
             ],
             onChange: setRoleFilter,
           },
@@ -231,6 +320,8 @@ export default function UserManagement() {
         onClose={() => {
           setIsModalOpen(false);
           setEditingUser(null);
+          createMutation.reset();
+          updateMutation.reset();
         }}
         onSubmit={handleUserSubmit}
         editingUser={editingUser}

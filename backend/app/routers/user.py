@@ -1,11 +1,14 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 from typing import Optional
 from uuid import UUID
+import logging
 
 from app.database import get_db
 from app.schemas.user import UserCreate, UserUpdate, UserResponse, PaginatedUsersResponse
 from app.services.user_service import UserService
+
+logger = logging.getLogger(__name__)
 
 userRouter = APIRouter(
     prefix="/api/v1/user",
@@ -16,13 +19,19 @@ userRouter = APIRouter(
 @userRouter.post("/register", summary="Register a new user", description="Register a new user with email and password", response_model=UserResponse)
 def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
     """Register a new user"""
-    return UserService.register_user(user_data, db)
+    try:
+        return UserService.register_user(user_data, db)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"User registration failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @userRouter.get("/", summary="Get all users", description="Get a paginated list of users with optional search and filtering", response_model=PaginatedUsersResponse)
 def get_users(
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
+    page_size: int = Query(10, ge=1, le=1000),
     search: Optional[str] = Query(None),
     sort_column: Optional[str] = Query(None),
     sort_direction: Optional[str] = Query(None, pattern="^(asc|desc)$"),

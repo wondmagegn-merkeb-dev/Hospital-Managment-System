@@ -1,12 +1,16 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { X } from 'lucide-react';
+import { X, Info } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import Button from '../ui/Button';
+import Tooltip from '../ui/Tooltip';
 import { createUserSchema, updateUserSchema, type UserFormData } from '../../validation/user';
+import { getRoles } from '../../services/roleService';
+import { SUPER_ADMIN_ROLE_NAME } from '../../config/constants';
 import type { UserModalProps } from '../../types/user';
+import type { Role } from '../../types/role';
 
-const roles = ['admin', 'doctor', 'nurse', 'receptionist'] as const;
 const statuses = ['active', 'inactive', 'suspended'] as const;
 
 export default function UserModal({
@@ -16,11 +20,21 @@ export default function UserModal({
   editingUser,
   isLoading = false,
 }: UserModalProps) {
+  const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([]);
+
+  // Fetch all roles from backend
+  const { data: roles } = useQuery({
+    queryKey: ['roles', 'all'],
+    queryFn: () => getRoles(),
+    enabled: isOpen,
+  });
+
   const {
     register,
     handleSubmit,
     formState: { errors },
     reset,
+    setValue,
   } = useForm({
     resolver: zodResolver(editingUser ? updateUserSchema : createUserSchema),
     defaultValues: editingUser
@@ -28,17 +42,17 @@ export default function UserModal({
           email: editingUser.email,
           username: editingUser.username,
           full_name: editingUser.full_name || '',
-          role: editingUser.role as 'admin' | 'doctor' | 'nurse' | 'receptionist',
+          roleIds: editingUser.roles?.map((r) => r.id) || [],
           status: editingUser.status,
           password: undefined,
         }
       : {
           email: '',
           username: '',
-          full_name: '',
-          role: 'receptionist',
-          status: 'active',
           password: '',
+          full_name: '',
+          roleIds: [],
+          status: 'active',
         },
   });
 
@@ -46,26 +60,41 @@ export default function UserModal({
   useEffect(() => {
     if (isOpen) {
       if (editingUser) {
+        const userRoleIds = editingUser.roles?.map((r) => r.id) || [];
+        setSelectedRoleIds(userRoleIds);
         reset({
           email: editingUser.email,
           username: editingUser.username,
           full_name: editingUser.full_name || '',
-          role: editingUser.role as 'admin' | 'doctor' | 'nurse' | 'receptionist',
+          roleIds: userRoleIds,
           status: editingUser.status,
           password: undefined,
         });
       } else {
-        reset({
-          email: '',
-          username: '',
-          full_name: '',
-          role: 'receptionist',
-          status: 'active',
-          password: '',
-        });
+        setSelectedRoleIds([]);
+        reset(
+          {
+            email: '',
+            username: '',
+            password: '',
+            full_name: '',
+            roleIds: [],
+            status: 'active',
+          },
+          { keepDefaultValues: false }
+        );
+        setValue('status', 'active');
       }
     }
-  }, [isOpen, editingUser, reset]);
+  }, [isOpen, editingUser, reset, setValue]);
+
+  const toggleRole = (roleId: string) => {
+    const newRoleIds = selectedRoleIds.includes(roleId)
+      ? selectedRoleIds.filter((id) => id !== roleId)
+      : [...selectedRoleIds, roleId];
+    setSelectedRoleIds(newRoleIds);
+    setValue('roleIds', newRoleIds, { shouldValidate: true });
+  };
 
   const onFormSubmit = (data: UserFormData) => {
     onSubmit(data);
@@ -100,7 +129,7 @@ export default function UserModal({
 
         {/* Title */}
         <h2
-          className="text-2xl font-bold text-gray-900 mb-6 leading-tight tracking-tight"
+          className="text-2xl font-bold text-gray-900 mb-4 leading-tight tracking-tight"
           style={{
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
             fontSize: '24px',
@@ -114,6 +143,19 @@ export default function UserModal({
         {/* Form */}
         <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-4">
           {/* Email */}
+          {editingUser ?   
+          (<div>
+            <label className="block text-sm font-medium mb-1.5 text-gray-700">
+              Email
+            </label>
+            <input
+              type="email"
+              readOnly
+              {...register('email')}
+               className="w-full px-4 py-2.5 rounded-xl border-2 border-input bg-gray-50 text-gray-600 cursor-not-allowed"
+               placeholder="user@example.com"
+            />
+          </div> ) :  (
           <div>
             <label className="block text-sm font-medium mb-1.5 text-gray-700">
               Email <span className="text-red-500">*</span>
@@ -132,27 +174,7 @@ export default function UserModal({
               <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
             )}
           </div>
-
-          {/* Username */}
-          <div>
-            <label className="block text-sm font-medium mb-1.5 text-gray-700">
-              Username <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              {...register('username')}
-              className={`w-full px-4 py-2.5 rounded-xl border-2 transition-all duration-200 ${
-                errors.username
-                  ? 'border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500'
-                  : 'border-input bg-background/50 focus:ring-2 focus:ring-primary/20 focus:border-primary hover:border-primary/50'
-              } focus:outline-none`}
-              placeholder="username"
-            />
-            {errors.username && (
-              <p className="mt-1 text-sm text-red-600">{errors.username.message}</p>
-            )}
-          </div>
-
+        )}
           {/* Full Name */}
           <div>
             <label className="block text-sm font-medium mb-1.5 text-gray-700">
@@ -169,45 +191,48 @@ export default function UserModal({
             )}
           </div>
 
-          {/* Role */}
-          <div>
-            <label className="block text-sm font-medium mb-1.5 text-gray-700">
-              Role <span className="text-red-500">*</span>
-            </label>
-            <select
-              {...register('role')}
-              className={`w-full px-4 py-2.5 rounded-xl border-2 transition-all duration-200 ${
-                errors.role
-                  ? 'border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500'
-                  : 'border-input bg-background/50 focus:ring-2 focus:ring-primary/20 focus:border-primary hover:border-primary/50'
-              } focus:outline-none`}
-            >
-              {roles.map((role) => (
-                <option key={role} value={role}>
-                  {role.charAt(0).toUpperCase() + role.slice(1)}
-                </option>
-              ))}
-            </select>
-            {errors.role && (
-              <p className="mt-1 text-sm text-red-600">{errors.role.message}</p>
-            )}
-          </div>
+          {/* Username - optional when creating, read-only when editing */}
+          {editingUser ? (
+            <div>
+              <label className="block text-sm font-medium mb-1.5 text-gray-700">
+                Username
+              </label>
+              <input
+                type="text"
+                {...register('username')}
+                readOnly
+                className="w-full px-4 py-2.5 rounded-xl border-2 border-input bg-gray-50 text-gray-600 cursor-not-allowed"
+                placeholder="Auto-generated"
+              />
+            </div>
+          ) : (
+            <div>
+              <label className="block text-sm font-medium mb-1.5 text-gray-700">
+                Username
+              </label>
+              <input
+                type="text"
+                {...register('username')}
+                className="w-full px-4 py-2.5 rounded-xl border-2 border-input bg-background/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 hover:border-primary/50"
+                placeholder="Optional - auto-generated from email if empty"
+              />
+              {errors.username && (
+                <p className="mt-1 text-sm text-red-600">{errors.username.message}</p>
+              )}
+            </div>
+          )}
 
-          {/* Password - Only for new users */}
+          {/* Password - optional when creating */}
           {!editingUser && (
             <div>
               <label className="block text-sm font-medium mb-1.5 text-gray-700">
-                Password <span className="text-red-500">*</span>
+                Password
               </label>
               <input
                 type="password"
                 {...register('password')}
-                className={`w-full px-4 py-2.5 rounded-xl border-2 transition-all duration-200 ${
-                  errors.password
-                    ? 'border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500'
-                    : 'border-input bg-background/50 focus:ring-2 focus:ring-primary/20 focus:border-primary hover:border-primary/50'
-                } focus:outline-none`}
-                placeholder="••••••••"
+                className="w-full px-4 py-2.5 rounded-xl border-2 border-input bg-background/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 hover:border-primary/50"
+                placeholder="Optional - auto-generated and emailed if empty"
               />
               {errors.password && (
                 <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
@@ -215,30 +240,83 @@ export default function UserModal({
             </div>
           )}
 
-          {/* Status */}
+
+
+          {/* Roles */}
           <div>
-            <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-2">
-              Status
+            <label className="block text-sm font-medium mb-1.5 text-gray-700">
+              Roles {!editingUser && <span className="text-red-500">*</span>}
             </label>
-            <select
-              id="status"
-              {...register('status')}
-              className={`w-full px-4 py-2.5 rounded-xl border-2 transition-all duration-200 ${
-                errors.status
-                  ? 'border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500'
-                  : 'border-input bg-background/50 focus:ring-2 focus:ring-primary/20 focus:border-primary hover:border-primary/50'
-              } focus:outline-none`}
-            >
-              {statuses.map((status) => (
-                <option key={status} value={status}>
-                  {status.charAt(0).toUpperCase() + status.slice(1)}
-                </option>
-              ))}
-            </select>
-            {errors.status && (
-              <p className="mt-1 text-sm text-red-600">{errors.status.message}</p>
+            <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto border-2 border-input rounded-xl p-3 bg-background/50">
+              {roles && roles.filter((r) => r.name !== SUPER_ADMIN_ROLE_NAME).length > 0 ? (
+                roles
+                  .filter((role) => role.name !== SUPER_ADMIN_ROLE_NAME)
+                  .map((role: Role) => (
+                  <label
+                    key={role.id}
+                    className="flex items-center gap-2 cursor-pointer hover:bg-accent/50 px-3 py-2 rounded-lg transition-colors shrink-0"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedRoleIds.includes(role.id)}
+                      onChange={() => toggleRole(role.id)}
+                      className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary focus:ring-2 shrink-0"
+                    />
+                    <span className="text-sm text-gray-700">{role.name}</span>
+                    {role.description && (
+                      <Tooltip content={role.description} position="top">
+                        <Info className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600 shrink-0" />
+                      </Tooltip>
+                    )}
+                  </label>
+                ))
+              ) : (
+                <p className="text-sm text-gray-500 py-2 w-full">
+                  No roles available
+                </p>
+              )}
+            </div>
+            <input
+              type="hidden"
+              {...register('roleIds')}
+            />
+            {errors.roleIds && (
+              <p className="mt-1 text-sm text-red-600">{errors.roleIds.message}</p>
             )}
           </div>
+
+          {!editingUser && (
+            <p className="text-sm text-gray-500 -mt-2">
+              Leave username and password blank to auto-generate. Credentials will be sent to the user&apos;s email.
+            </p>
+          )}
+
+          {/* Status - only when editing (new users default to active) */}
+          {editingUser && (
+            <div>
+              <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-2">
+                Status
+              </label>
+              <select
+                id="status"
+                {...register('status')}
+                className={`w-full px-4 py-2.5 rounded-xl border-2 transition-all duration-200 ${
+                  errors.status
+                    ? 'border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500'
+                    : 'border-input bg-background/50 focus:ring-2 focus:ring-primary/20 focus:border-primary hover:border-primary/50'
+                } focus:outline-none`}
+              >
+                {statuses.map((status) => (
+                  <option key={status} value={status}>
+                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                  </option>
+                ))}
+              </select>
+              {errors.status && (
+                <p className="mt-1 text-sm text-red-600">{errors.status.message}</p>
+              )}
+            </div>
+          )}
 
           {/* Form Actions */}
           <div className="flex gap-3 pt-6 border-t border-border/50 justify-end">

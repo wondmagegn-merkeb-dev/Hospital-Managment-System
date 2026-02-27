@@ -6,9 +6,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # CORS Configuration from environment variables
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+# Note: When allow_credentials=True, cannot use "*" - must specify explicit origins
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
+ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 ALLOW_CREDENTIALS = os.getenv("ALLOW_CREDENTIALS", "true").lower() == "true"
-ALLOWED_METHODS = os.getenv("ALLOWED_METHODS", "*").split(",")
+ALLOWED_METHODS = os.getenv("ALLOWED_METHODS", "GET,POST,PUT,DELETE,OPTIONS").split(",")
 ALLOWED_HEADERS = os.getenv("ALLOWED_HEADERS", "*").split(",")
 
 
@@ -25,4 +27,5 @@ def setup_cors(app: FastAPI) -> None:
         allow_credentials=ALLOW_CREDENTIALS,
         allow_methods=ALLOWED_METHODS,
         allow_headers=ALLOWED_HEADERS,
+        expose_headers=["*"],
     )

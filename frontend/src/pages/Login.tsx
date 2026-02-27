@@ -1,25 +1,39 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import { login } from '../services/authService';
+import { useAuth } from '../context/AuthContext';
+import type { AxiosError } from 'axios';
 
 interface LoginFormData {
-  email: string;
+  username: string;
   password: string;
 }
 
 export default function Login() {
+  const navigate = useNavigate();
+  const { setUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>();
 
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     try {
-      // TODO: Implement login API call
-      console.log('Login data:', data);
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    } catch (error) {
-      console.error('Login error:', error);
+      const res = await login(data.username, data.password);
+      localStorage.setItem('token', res.access_token);
+      localStorage.setItem('user', JSON.stringify(res.user));
+      setUser(res.user);
+      if (res.user.is_verified === false) {
+        navigate(`/verify-email?email=${encodeURIComponent(res.user.email)}`);
+      } else if (res.user.is_first_login === true) {
+        navigate('/change-password');
+      } else {
+        navigate('/dashboard');
+      }
+    } catch (err) {
+      const axiosErr = err as AxiosError<{ detail?: string }>;
+      toast.error(axiosErr.response?.data?.detail ?? 'Invalid username or password');
     } finally {
       setIsLoading(false);
     }
@@ -45,21 +59,19 @@ export default function Login() {
             
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
               <div>
-                <label className="block text-sm font-medium mb-2 text-gray-700">Email</label>
+                <label className="block text-sm font-medium mb-2 text-gray-700">Username</label>
                 <input
-                  type="email"
-                  {...register('email', {
-                    required: 'Email is required',
-                    pattern: {
-                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                      message: 'Invalid email address'
-                    }
+                  type="text"
+                  {...register('username', {
+                    required: 'Username is required',
+                    minLength: { value: 3, message: 'Username must be at least 3 characters' }
                   })}
                   className="w-full px-4 py-3 rounded-xl border border-indigo-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm hover:shadow-md"
-                  placeholder="admin@hospital.com"
+                  placeholder="Enter username or email"
+                  autoComplete="username"
                 />
-                {errors.email && (
-                  <p className="text-sm text-red-600 mt-1">{errors.email.message}</p>
+                {errors.username && (
+                  <p className="text-sm text-red-600 mt-1">{errors.username.message}</p>
                 )}
               </div>
               <div>

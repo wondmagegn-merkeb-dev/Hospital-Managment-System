@@ -1,8 +1,9 @@
 from pydantic import BaseModel, EmailStr, Field
+from typing import Optional
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr = Field(..., description="User email address")
+    username: str = Field(..., min_length=1, description="Username or email")
     password: str = Field(..., min_length=6, description="User password")
 
 
@@ -52,3 +53,10 @@ class ResendVerificationRequest(BaseModel):
 class ResendVerificationResponse(BaseModel):
     message: str = Field(..., description="Response message")
     email: str = Field(..., description="Email where verification code was sent")
+
+
+class ProfileUpdate(BaseModel):
+    """Schema for updating own profile (full name and/or password)"""
+    full_name: Optional[str] = Field(None, max_length=150)
+    current_password: Optional[str] = Field(None, min_length=6)
+    new_password: Optional[str] = Field(None, min_length=6)

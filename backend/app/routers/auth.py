@@ -2,12 +2,15 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from ..database.db_setup import get_db
+from ..dependencies.auth import get_current_user
+from ..models.user import User
 from ..schemas.auth import (
     LoginRequest, LoginResponse,
     ForgotPasswordRequest, ForgotPasswordResponse,
     ResetPasswordRequest, ResetPasswordResponse,
     VerifyEmailRequest, VerifyEmailResponse,
-    ResendVerificationRequest, ResendVerificationResponse
+    ResendVerificationRequest, ResendVerificationResponse,
+    ProfileUpdate,
 )
 from ..services.auth_service import AuthService
 
@@ -16,9 +19,21 @@ authRouter = APIRouter(
     tags=["auth"],
 )
 
-@authRouter.get("/me" , summary="Get current user", description="Get the current logged in user details")
-def get_current_user():
-    return {"message": "Get current user details"}
+
+@authRouter.get("/me", summary="Get current user", description="Get the current logged in user details")
+def get_me(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Return current user info (same format as login response)."""
+    return AuthService.get_me_user_info(user, db)
+
+
+@authRouter.put("/profile", summary="Update profile", description="Update current user's full name and/or password")
+def update_profile(
+    data: ProfileUpdate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Update own profile: full_name and/or password (requires current_password for password change)."""
+    return AuthService.update_profile(user, data, db)
 
 
 @authRouter.post("/login", summary="Login a user", description="Login a user with email and password and get access token", response_model=LoginResponse)

@@ -1,5 +1,7 @@
-import { useLocation, Link } from 'react-router-dom';
-import { Bell, User, ChevronRight, Menu } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { useLocation, Link, useNavigate } from 'react-router-dom';
+import { Bell, User, ChevronRight, Menu, LogOut, Settings } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 interface NavbarProps {
   onMenuToggle?: () => void;
@@ -7,6 +9,26 @@ interface NavbarProps {
 
 export default function Navbar({ onMenuToggle }: NavbarProps) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+
+  const handleLogout = () => {
+    logout();
+    setIsDropdownOpen(false);
+    navigate('/login');
+  };
 
   // Generate breadcrumbs from pathname
   const generateBreadcrumbs = () => {
@@ -91,14 +113,38 @@ export default function Navbar({ onMenuToggle }: NavbarProps) {
           <span className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 w-2 h-2 sm:w-2.5 sm:h-2.5 bg-gradient-to-r from-destructive to-destructive/80 rounded-full animate-pulse shadow-lg"></span>
         </button>
 
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 cursor-pointer">
-            <User className="w-4 h-4 sm:w-5 sm:h-5 text-primary-foreground" />
-          </div>
-          <div className="hidden lg:block">
-            <p className="text-sm font-medium">Admin User</p>
-            <p className="text-xs text-muted-foreground">admin@hospital.com</p>
-          </div>
+        <div className="relative flex items-center gap-2 sm:gap-3" ref={dropdownRef}>
+          <button
+            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+            className="flex items-center gap-2 sm:gap-3 p-1 rounded-xl hover:bg-accent/50 transition-all duration-200"
+          >
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg">
+              <User className="w-4 h-4 sm:w-5 sm:h-5 text-primary-foreground" />
+            </div>
+            <div className="hidden lg:block text-left">
+              <p className="text-sm font-medium">{user?.full_name || user?.username || 'User'}</p>
+              <p className="text-xs text-muted-foreground">{user?.email || ''}</p>
+            </div>
+          </button>
+          {isDropdownOpen && (
+            <div className="absolute right-0 top-full mt-2 w-56 py-2 bg-white backdrop-blur-xl border border-white/20 rounded-xl shadow-xl z-50">
+              <Link
+                to="/profile"
+                onClick={() => setIsDropdownOpen(false)}
+                className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-white/40 transition-colors"
+              >
+                <Settings className="w-4 h-4" />
+                Profile
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+                Log out
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>

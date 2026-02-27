@@ -1,0 +1,44 @@
+{
+  "modules": [
+    {
+      "name": "User Management",
+      "resources": [
+        {
+          "resource": "user",
+          "actions": ["create", "update", "read"]
+        },
+        {
+          "resource": "role",
+          "actions": ["create", "update", "read"]
+        }
+      ]
+    },
+    {
+      "name": "Patient Management",
+      "resources": [
+        {
+          "resource": "patient",
+          "actions": ["create", "update", "delete", "read"]
+        }
+      ]
+    },
+    {
+      "name": "Appointment Management",
+      "resources": [
+        {
+          "resource": "appointment",
+          "actions": ["create", "update", "delete", "read"]
+        }
+      ]
+    },
+    {
+      "name": "Pharmacy Management",
+      "resources": [
+        {
+          "resource": "medicine",
+          "actions": ["create", "update", "delete", "read"]
+        }
+      ]
+    }
+  ]
+}

@@ -1,9 +1,11 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import random
+from typing import Dict, List
 
 from ..models.user import User, UserRole
+from ..config.constants import SUPER_ADMIN_ROLE_NAME, ALL_PERMISSIONS as SUPER_ADMIN_PERMISSIONS
 from ..utils.password import verify_password, hash_password
 from ..utils.jwt import create_access_token
 from ..utils.email import send_password_reset_email, send_verification_email
@@ -12,8 +14,28 @@ from ..schemas.auth import (
     ForgotPasswordRequest, ForgotPasswordResponse,
     ResetPasswordRequest, ResetPasswordResponse,
     VerifyEmailRequest, VerifyEmailResponse,
-    ResendVerificationRequest, ResendVerificationResponse
+    ResendVerificationRequest, ResendVerificationResponse,
+    ProfileUpdate,
 )
+
+
+def _merge_role_permissions(user_roles: list) -> Dict[str, List[str]]:
+    """Merge permissions from all user roles. Super admin gets full access."""
+    for ur in user_roles:
+        role = ur.role if hasattr(ur, "role") else ur
+        if getattr(role, "name", None) == SUPER_ADMIN_ROLE_NAME:
+            return dict(SUPER_ADMIN_PERMISSIONS)
+    merged: Dict[str, List[str]] = {}
+    for ur in user_roles:
+        role = ur.role if hasattr(ur, "role") else ur
+        perms = getattr(role, "permissions", None) or {}
+        if isinstance(perms, dict):
+            for resource, actions in perms.items():
+                if isinstance(actions, list):
+                    existing = set(merged.get(resource, []))
+                    existing.update(a for a in actions if isinstance(a, str))
+                    merged[resource] = list(existing)
+    return merged
 
 
 class AuthService:
@@ -34,8 +56,12 @@ class AuthService:
         Raises:
             HTTPException: If credentials are invalid or user is inactive
         """
-        # Find user by email
-        user = db.query(User).filter(User.email == login_data.email).first()
+        # Find user by username or email
+        login_value = login_data.username.strip()
+        if "@" in login_value:
+            user = db.query(User).filter(User.email == login_value).first()
+        else:
+            user = db.query(User).filter(User.username == login_value).first()
         
         if not user:
             raise HTTPException(
@@ -58,12 +84,13 @@ class AuthService:
             )
         
         # Update last login
-        user.last_login = datetime.utcnow()
+        user.last_login = datetime.now(timezone.utc)
         db.commit()
         
-        # Load user roles
+        # Load user roles with permissions
         user_roles = db.query(UserRole).filter(UserRole.user_id == user.id).all()
         roles = [{"id": str(ur.role.id), "name": ur.role.name} for ur in user_roles]
+        permissions = _merge_role_permissions(user_roles)
         
         # Create access token
         token_data = {
@@ -80,7 +107,10 @@ class AuthService:
             "email": user.email,
             "full_name": user.full_name,
             "status": user.status.value,
-            "roles": roles
+            "roles": roles,
+            "permissions": permissions,
+            "is_verified": getattr(user, "is_verified", True),
+            "is_first_login": getattr(user, "is_first_login", False),
         }
         
         return LoginResponse(
@@ -88,6 +118,49 @@ class AuthService:
             token_type="bearer",
             user=user_info
         )
+
+    @staticmethod
+    def get_me_user_info(user: User, db: Session) -> dict:
+        """Build user info dict for /me endpoint (same format as login response)."""
+        user_roles = db.query(UserRole).filter(UserRole.user_id == user.id).all()
+        roles = [{"id": str(ur.role.id), "name": ur.role.name} for ur in user_roles]
+        permissions = _merge_role_permissions(user_roles)
+        return {
+            "id": str(user.id),
+            "username": user.username,
+            "email": user.email,
+            "full_name": user.full_name,
+            "status": user.status.value,
+            "roles": roles,
+            "permissions": permissions,
+            "is_verified": getattr(user, "is_verified", True),
+            "is_first_login": getattr(user, "is_first_login", False),
+        }
+
+    @staticmethod
+    def update_profile(user: User, data: ProfileUpdate, db: Session) -> dict:
+        """Update current user's profile (full_name and/or password)."""
+        if data.full_name is not None:
+            user.full_name = data.full_name
+        if data.new_password is not None:
+            if not data.current_password:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Current password is required to change password",
+                )
+            if not verify_password(data.current_password, user.password_hash):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Current password is incorrect",
+                )
+            user.password_hash = hash_password(data.new_password)
+            user.is_password_changed = True
+            if hasattr(user, "is_first_login"):
+                user.is_first_login = False
+        user.updated_at = datetime.now(timezone.utc)
+        db.commit()
+        db.refresh(user)
+        return AuthService.get_me_user_info(user, db)
     
     @staticmethod
     def _generate_otp() -> str:
@@ -126,7 +199,7 @@ class AuthService:
         
         # Set OTP and expiration (5 minutes from now)
         user.reset_otp = otp_code
-        user.reset_otp_expires_at = datetime.utcnow() + timedelta(minutes=5)
+        user.reset_otp_expires_at = datetime.now(timezone.utc) + timedelta(minutes=5)
         db.commit()
         
         # Send email with OTP
@@ -173,8 +246,9 @@ class AuthService:
                 detail="No password reset request found. Please request a new code."
             )
         
-        # Check if OTP is expired
-        if user.reset_otp_expires_at and user.reset_otp_expires_at < datetime.utcnow():
+        # Check if OTP is expired (use timezone-aware UTC for comparison)
+        now_utc = datetime.now(timezone.utc)
+        if user.reset_otp_expires_at and user.reset_otp_expires_at < now_utc:
             # Clear expired OTP
             user.reset_otp = None
             user.reset_otp_expires_at = None
@@ -195,7 +269,7 @@ class AuthService:
         user.password_hash = hash_password(reset_data.new_password)
         user.reset_otp = None
         user.reset_otp_expires_at = None
-        user.updated_at = datetime.utcnow()
+        user.updated_at = datetime.now(timezone.utc)
         db.commit()
         
         return ResetPasswordResponse(
@@ -240,9 +314,10 @@ class AuthService:
                 detail="Invalid verification code. Please try again."
             )
         
-        # Clear verification OTP (email is now verified)
+        # Clear verification OTP and mark email as verified
         user.verfication_otp = None
-        user.updated_at = datetime.utcnow()
+        user.is_verified = True
+        user.updated_at = datetime.now(timezone.utc)
         db.commit()
         
         return VerifyEmailResponse(
@@ -275,7 +350,7 @@ class AuthService:
             )
         
         # Check if email is already verified
-        if not user.verfication_otp:
+        if user.is_verified:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email is already verified"
@@ -286,7 +361,7 @@ class AuthService:
         
         # Set new OTP
         user.verfication_otp = otp_code
-        user.updated_at = datetime.utcnow()
+        user.updated_at = datetime.now(timezone.utc)
         db.commit()
         
         # Send email with OTP
