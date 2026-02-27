@@ -117,41 +117,32 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   };
 
   const isItemActive = (item: MenuItem) => {
-    // Check if direct path is active
     if (item.path && isActive(item.path)) return true;
-    // Check if any submenu item is active
     if (item.submenu && hasActiveSubmenu(item)) return true;
     return false;
   };
 
   return (
     <div
-      className={`shadow-2xl transition-all duration-500 ease-in-out flex flex-col h-screen ${
+      className={`bg-white border-r shadow-lg transition-all duration-300 ease-in-out flex flex-col h-screen ${
         isCollapsed ? 'w-16' : 'w-64'
       }`}
-      style={{ 
-        backgroundColor: 'rgba(51, 57, 205, 1)',
-        borderRight: '1px solid rgba(51, 57, 205, 0.3)'
-      }}
     >
       {/* Header */}
-      <div 
-        className="h-16 flex items-center justify-between px-4"
-        style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}
-      >
+      <div className="h-16 flex items-center justify-between px-4 border-b">
         {!isCollapsed && (
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-white to-blue-200 flex items-center justify-center">
-              <span className="text-[#3339cd] font-bold text-sm">H</span>
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center">
+              <span className="text-blue-700 font-bold text-sm">H</span>
             </div>
-            <h1 className="text-xl font-bold text-white">
+            <h1 className="text-xl font-bold text-gray-800">
               Hospital
             </h1>
           </div>
         )}
         <button
           onClick={onToggle}
-          className="p-2 rounded-xl hover:bg-white/10 transition-all duration-200 hover:scale-110 active:scale-95 text-white"
+          className="p-2 rounded-xl hover:bg-gray-100 transition-all duration-200 hover:scale-110 active:scale-95 text-gray-500 hover:text-gray-800"
           aria-label="Toggle sidebar"
         >
           {isCollapsed ? (
@@ -176,8 +167,8 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                   onClick={() => toggleSubmenu(item.label)}
                   className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
                     itemIsActive
-                      ? 'bg-white/15 text-white shadow-lg'
-                      : 'hover:bg-white/10 text-white/90 hover:text-white'
+                      ? 'bg-blue-50 text-blue-600 font-semibold'
+                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -185,13 +176,13 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                     <span className="font-medium">{item.label}</span>
                   </div>
                   <ChevronDown
-                    className={`w-4 h-4 transition-transform text-white/70 ${
+                    className={`w-4 h-4 transition-transform text-gray-400 ${
                       isSubmenuOpen ? 'rotate-180' : ''
                     }`}
                   />
                 </button>
                 {isSubmenuOpen && (
-                  <div className="ml-4 mt-1 space-y-1 pl-4" style={{ borderLeft: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                  <div className="ml-4 mt-1 space-y-1 pl-4 border-l border-gray-200">
                     {item.submenu.map((subItem) => {
                       const subIsActive = isActive(subItem.path);
                       return (
@@ -200,8 +191,8 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                           to={subItem.path}
                           className={`block px-3 py-2 rounded-lg text-sm transition-all duration-200 ${
                             subIsActive
-                              ? 'bg-white/20 text-white font-semibold border-l-2 border-white/50'
-                              : 'text-white/70 hover:bg-white/10 hover:text-white hover:translate-x-1'
+                              ? 'bg-blue-50 text-blue-700 font-semibold'
+                              : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800 hover:translate-x-1'
                           }`}
                         >
                           {subItem.label}
@@ -214,7 +205,6 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
             );
           }
 
-          // Regular menu item or collapsed state
           return (
             <Link
               key={item.path || item.label}
@@ -225,8 +215,8 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
               } : undefined}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
                 itemIsActive
-                  ? 'bg-white/15 text-white shadow-lg'
-                  : 'hover:bg-white/10 text-white/90 hover:text-white'
+                  ? 'bg-blue-50 text-blue-600 font-semibold'
+                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
               }`}
               title={isCollapsed ? item.label : undefined}
             >
@@ -240,10 +230,10 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       </nav>
 
       {/* Footer */}
-      <div className="p-4 mt-auto" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
+      <div className="p-4 mt-auto border-t">
         {!isCollapsed && (
-          <div className="text-sm text-white/70">
-            <p className="font-medium text-white">Hospital Management</p>
+          <div className="text-sm text-gray-500">
+            <p className="font-medium text-gray-700">Hospital Management</p>
             <p className="text-xs">v1.0.0</p>
           </div>
         )}

@@ -7,7 +7,7 @@ load_dotenv()
 
 # CORS Configuration from environment variables
 # Note: When allow_credentials=True, cannot use "*" - must specify explicit origins
-_raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,https://5173-firebase-hms-1772197788249.cluster-lu4mup47g5gm4rtyvhzpwbfadi.cloudworkstations.dev")
 ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 ALLOW_CREDENTIALS = os.getenv("ALLOW_CREDENTIALS", "true").lower() == "true"
 ALLOWED_METHODS = os.getenv("ALLOWED_METHODS", "GET,POST,PUT,DELETE,OPTIONS").split(",")

@@ -12,39 +12,8 @@ export interface StatItem {
   label: string;
   value: string | number;
   icon?: ReactNode;
-  color?: string; // Tailwind color class or CSS color value
+  color?: string; // Tailwind color class, e.g., 'text-primary', 'text-accent'
 }
-
-// Helper function to convert Tailwind color classes to actual color values
-const getColorValue = (colorClass?: string): string => {
-  if (!colorClass) return 'rgba(51, 57, 205, 1)'; // Default blue
-  
-  // If it's already a CSS color value (rgba, rgb, hex, etc.), return it
-  if (colorClass.startsWith('rgba') || colorClass.startsWith('rgb') || colorClass.startsWith('#')) {
-    return colorClass;
-  }
-  
-  // Map common Tailwind color classes to actual color values
-  const colorMap: Record<string, string> = {
-    'text-blue-500': '#3b82f6',
-    'text-blue-600': '#2563eb',
-    'text-green-500': '#10b981',
-    'text-green-600': '#059669',
-    'text-red-500': '#ef4444',
-    'text-red-600': '#dc2626',
-    'text-yellow-500': '#eab308',
-    'text-yellow-600': '#ca8a04',
-    'text-purple-500': '#a855f7',
-    'text-purple-600': '#9333ea',
-    'text-indigo-500': '#6366f1',
-    'text-indigo-600': '#4f46e5',
-    'text-pink-500': '#ec4899',
-    'text-pink-600': '#db2777',
-    'text-primary': 'rgba(51, 57, 205, 1)',
-  };
-  
-  return colorMap[colorClass] || 'rgba(51, 57, 205, 1)';
-};
 
 export interface FilterOption {
   label: string;
@@ -52,36 +21,25 @@ export interface FilterOption {
 }
 
 interface ListLayoutProps<T extends { id?: number | string }> {
-  // Title section
   title: string;
   titleIcon?: ReactNode;
   description?: string;
-  
-  // Action buttons
   actionButtons?: ReactNode;
-  
-  // Stats cards
   stats?: StatItem[];
-  
-  // Search
   searchValue?: string;
   onSearchChange?: (value: string) => void;
   searchPlaceholder?: string;
-  
-  // Filters
   filters?: {
     label: string;
     value: string;
     options: FilterOption[];
     onChange: (value: string) => void;
   }[];
-  
-  // Table
   queryFn: (
     page: number,
     pageSize: number,
     sortColumn?: string | null,
-    sortDirection?: SortDirection
+    sortDirection?: SortDirection | null
   ) => Promise<{ data: T[]; total: number }>;
   queryKey: (string | number)[];
   columns: Column<T>[];
@@ -91,46 +49,9 @@ interface ListLayoutProps<T extends { id?: number | string }> {
   onEmptyAction?: () => void;
   initialPageSize?: number;
   itemsPerPageOptions?: number[];
-  
-  // Additional
   className?: string;
 }
 
-/**
- * ListLayout Component
- * 
- * A comprehensive reusable layout component that includes:
- * - Title and description
- * - Action buttons
- * - Stats cards
- * - Search functionality
- * - Filters
- * - Table with pagination
- * 
- * @example
- * ```tsx
- * <ListLayout
- *   title="Users"
- *   description="Manage users and their roles"
- *   actionButtons={<Button>Add User</Button>}
- *   stats={[
- *     { label: 'Total Users', value: 100 },
- *     { label: 'Active', value: 85 },
- *   ]}
- *   searchValue={searchTerm}
- *   onSearchChange={setSearchTerm}
- *   filters={[{
- *     label: 'Role',
- *     value: roleFilter,
- *     options: [{ label: 'All', value: 'all' }, ...],
- *     onChange: setRoleFilter,
- *   }]}
- *   queryFn={fetchUsers}
- *   queryKey={['users']}
- *   columns={columns}
- * />
- * ```
- */
 export default function ListLayout<T extends { id?: number | string }>({
   title,
   titleIcon,
@@ -157,9 +78,9 @@ export default function ListLayout<T extends { id?: number | string }>({
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex-1 min-w-0">
-          <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2 sm:gap-3" style={{ color: 'rgba(51, 57, 205, 1)' }}>
+          <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2 sm:gap-3 text-primary">
             {titleIcon && <span className="flex-shrink-0">{titleIcon}</span>}
-            <span className="text-2xl sm:text-3xl font-bold truncate">{title}</span>
+            <span className="truncate">{title}</span>
           </h1>
           {description && (
             <p className="text-sm sm:text-base text-muted-foreground mt-1">{description}</p>
@@ -176,28 +97,27 @@ export default function ListLayout<T extends { id?: number | string }>({
       {stats.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           {stats.map((stat, index) => (
-            <div
+            <Card
               key={index}
-              className="bg-gradient-to-br from-card via-card to-card/80 backdrop-blur-sm border border-border/50 rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 animate-fade-in"
+              className="bg-card hover:shadow-xl transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 animate-fade-in"
               style={{ animationDelay: `${index * 100}ms` }}
             >
-              <div className="flex items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs sm:text-sm font-medium text-muted-foreground mb-1 truncate">{stat.label}</p>
-                  <p 
-                    className="text-2xl sm:text-3xl font-semibold truncate" 
-                    style={{ color: getColorValue(stat.color) }}
-                  >
-                    {stat.value}
-                  </p>
-                </div>
-                {stat.icon && (
-                  <div className={`p-3 md:p-4 rounded-xl md:rounded-2xl bg-gradient-to-br from-accent to-accent/50 shadow-lg flex-shrink-0 ${stat.color || 'text-primary'}`}>
-                    {stat.icon}
+              <CardContent className="p-4 md:p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs sm:text-sm font-medium text-muted-foreground mb-1 truncate">{stat.label}</p>
+                    <p className={`text-2xl sm:text-3xl font-semibold truncate ${stat.color || 'text-primary'}`}>
+                      {stat.value}
+                    </p>
                   </div>
-                )}
-              </div>
-            </div>
+                  {stat.icon && (
+                    <div className={`p-3 md:p-4 rounded-xl md:rounded-2xl bg-primary/10 flex-shrink-0 ${stat.color || 'text-primary'}`}>
+                      {stat.icon}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           ))}
         </div>
       )}
@@ -205,11 +125,9 @@ export default function ListLayout<T extends { id?: number | string }>({
       {/* Combined Card: Filters, Table, and Pagination */}
       <Card>
         <CardContent className="p-0">
-          {/* Search and Filters Section */}
           {(onSearchChange || filters.length > 0) && (
-            <div className="p-3 md:p-4 border-b border-border">
+            <div className="p-3 md:p-4 border-b">
               <div className="flex flex-col lg:flex-row lg:items-center gap-3 md:gap-4">
-                {/* Search */}
                 {onSearchChange && (
                   <div className="relative w-full lg:flex-1 lg:max-w-md group">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
@@ -218,12 +136,10 @@ export default function ListLayout<T extends { id?: number | string }>({
                       placeholder={searchPlaceholder}
                       value={searchValue || ''}
                       onChange={(e) => onSearchChange(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border-2 border-input bg-background/50 backdrop-blur-sm text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 hover:border-primary/50"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary transition-all duration-200 hover:border-primary/50"
                     />
                   </div>
                 )}
-
-                {/* Filters */}
                 {filters.length > 0 && (
                   <div className="flex flex-col sm:flex-row lg:items-center items-start gap-2 sm:gap-3 lg:flex-shrink-0">
                     <div className="flex items-center gap-2 text-muted-foreground">
@@ -232,14 +148,14 @@ export default function ListLayout<T extends { id?: number | string }>({
                     </div>
                     <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                       {filters.map((filter, index) => (
-                        <div key={index} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 min-w-0 flex-1 sm:flex-initial">
-                          <label className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap sm:inline hidden sm:block">
+                        <div key={index} className="flex items-center gap-2 min-w-0 flex-1 sm:flex-initial">
+                          <label className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap hidden sm:block">
                             {filter.label}:
                           </label>
                           <select
                             value={filter.value}
                             onChange={(e) => filter.onChange(e.target.value)}
-                            className="w-full sm:w-auto px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl border-2 border-input bg-background/50 backdrop-blur-sm text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 hover:border-primary/50 min-w-[120px] font-medium"
+                            className="w-full sm:w-auto px-3 sm:px-4 py-2.5 rounded-xl border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary transition-all duration-200 hover:border-primary/50 min-w-[120px] font-medium"
                           >
                             {filter.options.map((option) => (
                               <option key={option.value} value={option.value}>
@@ -255,9 +171,7 @@ export default function ListLayout<T extends { id?: number | string }>({
               </div>
             </div>
           )}
-
-          {/* Table with Pagination - Desktop */}
-          <div className={`${onSearchChange || filters.length > 0 ? '' : 'p-4 md:p-6'} hidden md:block`}>
+          <div className="hidden md:block">
             <TableWithPagination
               queryFn={queryFn}
               queryKey={queryKey}
@@ -270,8 +184,6 @@ export default function ListLayout<T extends { id?: number | string }>({
               itemsPerPageOptions={itemsPerPageOptions}
             />
           </div>
-
-          {/* Mobile Card View */}
           <MobileCardView
             queryFn={queryFn}
             queryKey={queryKey}
@@ -287,13 +199,12 @@ export default function ListLayout<T extends { id?: number | string }>({
   );
 }
 
-// Mobile Card View Component
 interface MobileCardViewProps<T extends { id?: number | string }> {
   queryFn: (
     page: number,
     pageSize: number,
     sortColumn?: string | null,
-    sortDirection?: SortDirection
+    sortDirection?: SortDirection | null
   ) => Promise<{ data: T[]; total: number }>;
   queryKey: (string | number)[];
   columns: Column<T>[];
@@ -338,7 +249,6 @@ function MobileCardView<T extends { id?: number | string }>({
     return String(value ?? '');
   };
 
-  // Filter out Actions column for mobile (or show it differently)
   const displayColumns = columns.filter(col => col.header !== 'Actions');
   const actionsColumn = columns.find(col => col.header === 'Actions');
 
@@ -372,59 +282,38 @@ function MobileCardView<T extends { id?: number | string }>({
 
   return (
     <div className="md:hidden space-y-4 p-4">
-      {/* Mobile Cards */}
       <div className="space-y-4">
         {data.data.map((row) => (
-          <div
-            key={row.id ?? Math.random()}
-            className="relative bg-white rounded-xl border border-gray-200 shadow-[0_1px_3px_0_rgba(0,0,0,0.1),0_1px_2px_-1px_rgba(0,0,0,0.1)] hover:shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1),0_2px_4px_-2px_rgba(0,0,0,0.1)] transition-shadow duration-200"
-          >
-            <div className="p-5">
+          <Card key={row.id ?? Math.random()} className="hover:shadow-lg transition-shadow duration-200">
+            <CardContent className="p-5">
               <div className="space-y-4">
                 {displayColumns.map((column, index) => {
                   const isFirstColumn = index === 0;
-                  const isLastDataColumn = index === displayColumns.length - 1;
-                  const cellContent = renderCell(row, column);
-                  
                   return (
-                    <div 
-                      key={index}
-                      className={!isLastDataColumn ? 'pb-4 border-b border-gray-100' : ''}
-                    >
+                    <div key={index} className={index < displayColumns.length - 1 ? 'pb-4 border-b border-border/50' : ''}>
                       <div>
-                        <div className="mb-1.5">
-                          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.05em]">
-                            {column.header}
-                          </span>
-                        </div>
-                        <div className={`${
-                          isFirstColumn 
-                            ? 'text-[15px] font-semibold text-gray-900' 
-                            : 'text-sm font-normal text-gray-800'
-                        }`}>
-                          {cellContent}
+                        <p className="mb-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">{column.header}</p>
+                        <div className={`${isFirstColumn ? 'text-base font-semibold text-foreground' : 'text-sm text-muted-foreground'}`}>
+                          {renderCell(row, column)}
                         </div>
                       </div>
                     </div>
                   );
                 })}
               </div>
-              
               {actionsColumn && (
-                <div className="pt-4 mt-4 border-t border-gray-200">
+                <div className="pt-4 mt-4 border-t border-border/50">
                   <div className="flex items-center justify-end gap-2">
                     {renderCell(row, actionsColumn)}
                   </div>
                 </div>
               )}
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         ))}
       </div>
-
-      {/* Mobile Pagination */}
       {data.total > 0 && (
-        <div className="pt-3 border-t border-border">
+        <div className="pt-3 border-t">
           <Pagination
             currentPage={currentPage}
             totalPages={totalPages}

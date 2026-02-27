@@ -1,131 +1,117 @@
-import type { ReactNode } from 'react';
-import { ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { useState, useMemo, type ReactNode } from 'react';
+import { ChevronUp, ChevronDown } from 'lucide-react';
 import EmptyState from './common/EmptyState';
 import Loading from './common/Loading';
 
-export type SortDirection = 'asc' | 'desc' | null;
+export type SortDirection = 'asc' | 'desc';
 
 export interface Column<T> {
-  header: string;
+  header: string | ReactNode;
   accessor: keyof T | ((row: T) => ReactNode);
-  className?: string;
   sortable?: boolean;
-  sortKey?: string; // Optional key for sorting (useful when accessor is a function)
+  className?: string;
 }
 
-export interface SortConfig {
-  column: string | null;
-  direction: SortDirection;
-}
-
-interface TableProps<T> {
-  data: T[];
+interface TableProps<T extends { id?: number | string }> {
   columns: Column<T>[];
-  isLoading?: boolean;
+  data: T[];
+  total: number;
+  isLoading: boolean;
+  error: Error | null;
+  sortColumn: keyof T | null;
+  sortDirection: SortDirection;
+  onSort: (column: keyof T) => void;
+  onRowClick?: (row: T) => void;
   emptyMessage?: string;
   emptyIcon?: ReactNode;
   emptyActionLabel?: string;
   onEmptyAction?: () => void;
-  onRowClick?: (row: T) => void;
   className?: string;
-  sortConfig?: SortConfig;
-  onSort?: (column: string, direction: SortDirection) => void;
 }
 
 export default function Table<T extends { id?: number | string }>({
-  data,
   columns,
-  isLoading = false,
-  emptyMessage = 'No data available',
+  data,
+  total,
+  isLoading,
+  error,
+  sortColumn,
+  sortDirection,
+  onSort,
+  onRowClick,
+  emptyMessage = 'No data to display',
   emptyIcon,
   emptyActionLabel,
   onEmptyAction,
-  onRowClick,
   className = '',
-  sortConfig,
-  onSort,
 }: TableProps<T>) {
-  if (isLoading) {
+  const [internalSortColumn, setInternalSortColumn] = useState<keyof T | null>(sortColumn);
+  const [internalSortDirection, setInternalSortDirection] = useState<SortDirection>(sortDirection);
+
+  const handleSort = (column: Column<T>) => {
+    if (!column.sortable || typeof column.accessor !== 'string') return;
+
+    const newSortDirection = 
+      internalSortColumn === column.accessor && internalSortDirection === 'asc' 
+      ? 'desc' 
+      : 'asc';
+
+    setInternalSortColumn(column.accessor);
+    setInternalSortDirection(newSortDirection);
+    onSort(column.accessor);
+  };
+
+  const renderCell = (row: T, column: Column<T>): ReactNode => {
+    if (typeof column.accessor === 'function') {
+      return column.accessor(row);
+    }
+    const value = row[column.accessor];
+    return String(value ?? '');
+  };
+
+  const memoizedColumns = useMemo(() => columns, [columns]);
+
+  if (error) {
     return (
-      <div className="bg-card border border-border rounded-lg">
-        <Loading message="Loading data..." size="md" />
+      <div className="text-center py-10">
+        <p className="text-destructive font-medium">Error: {error.message}</p>
       </div>
     );
   }
 
-  const renderCell = (row: T, column: Column<T>) => {
-    if (typeof column.accessor === 'function') {
-      return column.accessor(row);
-    }
-    return String(row[column.accessor] ?? '');
-  };
-
-  const handleSort = (column: Column<T>) => {
-    if (!column.sortable || !onSort) return;
-
-    const sortKey = column.sortKey || (typeof column.accessor === 'string' ? column.accessor : column.header.toLowerCase());
-    const currentColumn = sortConfig?.column;
-    const currentDirection = sortConfig?.direction;
-
-    let newDirection: SortDirection = 'asc';
-    if (currentColumn === sortKey) {
-      if (currentDirection === 'asc') {
-        newDirection = 'desc';
-      } else if (currentDirection === 'desc') {
-        newDirection = null;
-      }
-    }
-
-    onSort(sortKey, newDirection);
-  };
-
-  const getSortIcon = (column: Column<T>) => {
-    if (!column.sortable) return null;
-
-    const sortKey = column.sortKey || (typeof column.accessor === 'string' ? column.accessor : column.header.toLowerCase());
-    const isActive = sortConfig?.column === sortKey;
-    const direction = sortConfig?.direction;
-
-    if (!isActive) {
-      return <ArrowUpDown className="w-4 h-4 text-white/70" />;
-    }
-
-    if (direction === 'asc') {
-      return <ArrowUp className="w-4 h-4 text-white" />;
-    }
-
-    if (direction === 'desc') {
-      return <ArrowDown className="w-4 h-4 text-white" />;
-    }
-
-    return <ArrowUpDown className="w-4 h-4 text-white/70" />;
-  };
+  if (isLoading && total === 0) {
+    return <Loading message="Loading data..." className="py-10" />;
+  }
 
   return (
     <div className={`overflow-hidden ${className}`}>
       <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead style={{ backgroundColor: 'rgba(51, 57, 205, 1)' }}>
-            <tr>
-              {columns.map((column, index) => (
+        <table className="w-full border-separate border-spacing-y-2">
+          <thead>
+            <tr className="bg-gradient-to-r from-primary to-accent">
+              {memoizedColumns.map((column, index) => (
                 <th
                   key={index}
                   onClick={() => handleSort(column)}
-                  className={`px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider ${
-                    index === 0 ? 'rounded-tl-lg' : ''
-                  } ${
-                    index === columns.length - 1 ? 'rounded-tr-lg' : ''
-                  } ${
+                  className={`px-6 py-4 text-left text-sm font-semibold text-primary-foreground first:rounded-l-lg last:rounded-r-lg ${
                     column.className || ''
                   } ${
-                    column.sortable && onSort
-                      ? 'cursor-pointer hover:bg-white/10 select-none transition-all duration-200'
+                    column.sortable
+                      ? 'cursor-pointer hover:bg-black/10 select-none transition-colors duration-200'
                       : ''
                   }`}
                 >
                   <div className="flex items-center gap-2">
                     <span>{column.header}</span>
-                    {getSortIcon(column)}
+                    {column.sortable && internalSortColumn === column.accessor && (
+                      <span className="transition-transform duration-200">
+                        {internalSortDirection === 'asc' ? (
+                          <ChevronUp className="w-4 h-4" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4" />
+                        )}
+                      </span>
+                    )}
                   </div>
                 </th>
               ))}
@@ -134,38 +120,32 @@ export default function Table<T extends { id?: number | string }>({
           {data.length === 0 ? (
             <tbody>
               <tr>
-                <td colSpan={columns.length} className="p-0">
-                  <div className="bg-card border-x border-b border-border rounded-b-lg">
-                    <EmptyState 
-                      message={emptyMessage}
-                      icon={emptyIcon}
-                      actionLabel={emptyActionLabel}
-                      onAction={onEmptyAction}
-                    />
-                  </div>
+                <td colSpan={columns.length}>
+                  <EmptyState 
+                    message={emptyMessage} 
+                    icon={emptyIcon} 
+                    actionLabel={emptyActionLabel}
+                    onAction={onEmptyAction}
+                  />
                 </td>
               </tr>
             </tbody>
           ) : (
-            <tbody className="divide-y divide-border/50">
+            <tbody>
               {data.map((row, rowIndex) => (
                 <tr
                   key={row.id ?? rowIndex}
-                  onClick={() => onRowClick?.(row)}
-                  className={`transition-all duration-200 ${
-                    rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                  } ${
-                    onRowClick 
-                      ? 'cursor-pointer hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:scale-[1.01]' 
+                  onClick={() => onRowClick && onRowClick(row)}
+                  className={`bg-card shadow-sm border border-transparent rounded-lg transition-all duration-200 ${
+                    !!onRowClick 
+                      ? 'cursor-pointer hover:shadow-md hover:border-border' 
                       : ''
                   }`}
                 >
-                  {columns.map((column, colIndex) => (
+                  {memoizedColumns.map((column, colIndex) => (
                     <td
                       key={colIndex}
-                      className={`px-6 py-4 whitespace-nowrap text-sm ${
-                        column.className || ''
-                      }`}
+                      className={`px-6 py-5 whitespace-nowrap text-sm text-foreground/90 first:rounded-l-lg last:rounded-r-lg ${column.className || ''}`}
                     >
                       {renderCell(row, column)}
                     </td>
