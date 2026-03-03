@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import { type Column } from '../components/TableWithPagination';
 import Button from '../components/ui/Button';
+import Badge from '../components/ui/Badge';
 import ListLayout, { type StatItem } from '../components/common/ListLayout';
 import Tooltip from '../components/ui/Tooltip';
 import UserModal from '../components/user/UserModal';
@@ -112,15 +113,20 @@ export default function UserManagement() {
   // Define table columns with sortable options
   const columns: Column<User>[] = [
     {
-      header: 'User',
+      header: 'Full Name',
       accessor: (row: User) => (
-        <div>
-          <div className="font-medium">{row.full_name || row.username}</div>
-          <div className="text-sm text-blue-500 text-muted-foreground text-ellipsis overflow-hidden whitespace-nowrap max-w-[100px]">{row.username}</div>
-        </div>
+        <div className="font-medium">{row.full_name || 'N/A'}</div>
       ),
       sortable: true,
       sortKey: 'full_name',
+    },
+    {
+      header: 'Username',
+      accessor: (row: User) => (
+        <div className="text-sm text-gray-900">{row.username}</div>
+      ),
+      sortable: true,
+      sortKey: 'username',
     },
     {
       header: 'Email',
@@ -134,15 +140,11 @@ export default function UserManagement() {
           {row.roles && row.roles.length > 0 ? (
             row.roles.map((role) => (
               <Tooltip key={role.id} content={role.name} position="top">
-                <span className="px-2 py-1 text-xs font-medium rounded-full bg-primary/10 text-primary ">
-                  {role.name}
-                </span>
+                <Badge>{role.name}</Badge>
               </Tooltip>
             ))
           ) : (
-            <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-500">
-              No roles
-            </span>
+            <Badge variant="secondary">No roles</Badge>
           )}
         </div>
       ),
@@ -165,16 +167,6 @@ export default function UserManagement() {
       },
       sortable: true,
       sortKey: 'status',
-    },
-    {
-      header: 'Created',
-      accessor: (row: User) => (
-        <span className="text-sm text-muted-foreground">
-          {new Date(row.created_at).toLocaleDateString()}
-        </span>
-      ),
-      sortable: true,
-      sortKey: 'created_at',
     },
     {
       header: 'Actions',

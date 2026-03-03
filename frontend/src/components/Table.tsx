@@ -9,6 +9,7 @@ export interface Column<T> {
   header: string | ReactNode;
   accessor: keyof T | ((row: T) => ReactNode);
   sortable?: boolean;
+  sortKey?: keyof T;
   className?: string;
 }
 
@@ -49,16 +50,22 @@ export default function Table<T extends { id?: number | string }>({
   const [internalSortDirection, setInternalSortDirection] = useState<SortDirection>(sortDirection);
 
   const handleSort = (column: Column<T>) => {
-    if (!column.sortable || typeof column.accessor !== 'string') return;
+    if (!column.sortable) return;
+
+    const sortKey = typeof column.accessor === 'string' 
+      ? column.accessor 
+      : column.sortKey;
+
+    if (!sortKey) return;
 
     const newSortDirection = 
-      internalSortColumn === column.accessor && internalSortDirection === 'asc' 
+      internalSortColumn === sortKey && internalSortDirection === 'asc' 
       ? 'desc' 
       : 'asc';
 
-    setInternalSortColumn(column.accessor);
+    setInternalSortColumn(sortKey);
     setInternalSortDirection(newSortDirection);
-    onSort(column.accessor);
+    onSort(sortKey);
   };
 
   const renderCell = (row: T, column: Column<T>): ReactNode => {
@@ -86,7 +93,7 @@ export default function Table<T extends { id?: number | string }>({
   return (
     <div className={`overflow-hidden ${className}`}>
       <div className="overflow-x-auto">
-        <table className="w-full border-separate border-spacing-y-2">
+        <table className="w-full">
           <thead>
             <tr className="bg-gradient-to-r from-primary to-accent">
               {memoizedColumns.map((column, index) => (
@@ -136,16 +143,18 @@ export default function Table<T extends { id?: number | string }>({
                 <tr
                   key={row.id ?? rowIndex}
                   onClick={() => onRowClick && onRowClick(row)}
-                  className={`bg-card shadow-sm border border-transparent rounded-lg transition-all duration-200 ${
+                  className={`${
+                    rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                  } ${
                     !!onRowClick 
-                      ? 'cursor-pointer hover:shadow-md hover:border-border' 
+                      ? 'cursor-pointer hover:bg-gray-100' 
                       : ''
                   }`}
                 >
                   {memoizedColumns.map((column, colIndex) => (
                     <td
                       key={colIndex}
-                      className={`px-6 py-5 whitespace-nowrap text-sm text-foreground/90 first:rounded-l-lg last:rounded-r-lg ${column.className || ''}`}
+                      className={`px-6 py-4 whitespace-nowrap text-sm text-gray-900 ${column.className || ''}`}
                     >
                       {renderCell(row, column)}
                     </td>

@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 import Button from '../ui/Button';
+import Badge from '../ui/Badge';
 import type { User } from '../../types/user';
 import Tooltip from '../ui/Tooltip';
 
@@ -92,13 +93,11 @@ export default function ViewUserModal({
                 {user.roles && user.roles.length > 0 ? (
                   user.roles.map((role) => (
                     <Tooltip key={role.id} content={role.description || ''} position="top">
-                      <span className="inline-flex px-3 py-1 text-sm font-medium rounded-full bg-blue-100 text-blue-800">
-                        {role.name}
-                      </span>
+                      <Badge>{role.name}</Badge>
                     </Tooltip>
                   ))
                 ) : (
-                  <span className="text-gray-500">No roles assigned</span>
+                  <Badge variant="secondary">No roles assigned</Badge>
                 )}
               </div>
             </div>
@@ -122,18 +121,6 @@ export default function ViewUserModal({
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                Created At
-              </label>
-              <div className="text-base font-medium text-gray-900">
-                {new Date(user.created_at).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                })}
-              </div>
-            </div>
           </div>
         </div>
 

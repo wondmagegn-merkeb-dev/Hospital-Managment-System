@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { updateProfile, type ProfileUpdateData } from '../services/authService';
+import Badge from '../components/ui/Badge';
 import type { AxiosError } from 'axios';
 
 interface ProfileFormData {
@@ -351,9 +352,15 @@ export default function Profile() {
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Roles
                   </p>
-                  <p className="font-medium mt-0.5">
-                    {user.roles?.map((r) => r.name).join(', ') || '—'}
-                  </p>
+                  <div className="flex flex-wrap gap-1 mt-0.5">
+                    {user.roles && user.roles.length > 0 ? (
+                      user.roles.map((role) => (
+                        <Badge key={role.id}>{role.name}</Badge>
+                      ))
+                    ) : (
+                      <span className="text-gray-500">—</span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

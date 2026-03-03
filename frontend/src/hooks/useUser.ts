@@ -44,7 +44,7 @@ export function useUsersQuery(
   searchTerm?: string,
   roleFilter?: string
 ) {
-  return (page: number, pageSize: number, sortColumn?: string | null, sortDirection?: SortDirection) => {
+  return (page: number, pageSize: number, sortColumn?: string | null, sortDirection?: SortDirection | null) => {
     return getUsersPaginated(page, pageSize, sortColumn, sortDirection, searchTerm, roleFilter);
   };
 }

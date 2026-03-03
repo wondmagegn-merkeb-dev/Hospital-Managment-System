@@ -94,19 +94,6 @@ export default function ViewRoleModal({
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                Created At
-              </label>
-              <div className="text-base font-medium text-gray-900">
-                {new Date(role.created_at).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                })}
-              </div>
-            </div>
-
             <div className="md:col-span-2">
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
                 Description

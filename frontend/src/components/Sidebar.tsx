@@ -39,8 +39,7 @@ const menuItems: MenuItem[] = [
     permission: { resource: 'patient', action: 'read' },
     submenu: [
       { label: 'All Patients', path: '/patients', permission: { resource: 'patient', action: 'read' } },
-      { label: 'Add Patient', path: '/patients/new', permission: { resource: 'patient', action: 'create' } },
-      { label: 'Patient Records', path: '/patients/records', permission: { resource: 'patient', action: 'read' } },
+      { label: 'Add Patient', path: '/patients/add', permission: { resource: 'patient', action: 'create' } },
     ]
   },
   { 

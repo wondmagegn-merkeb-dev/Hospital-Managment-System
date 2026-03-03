@@ -1,5 +1,23 @@
 from .user import UserCreate, UserUpdate, UserResponse, UserListResponse, PaginatedUsersResponse
 from .role import RoleCreate, RoleUpdate, RoleResponse, PaginatedRolesResponse, UserRoleResponse
+from .patient import (
+    PatientCreate,
+    PatientUpdate,
+    PatientResponse,
+    PatientListResponse,
+    PaginatedPatientsResponse,
+    EmergencyContactCreate,
+    EmergencyContactUpdate,
+    EmergencyContactResponse,
+    InsuranceCreate,
+    InsuranceUpdate,
+    InsuranceResponse,
+    DocumentCreate,
+    DocumentUpdate,
+    DocumentResponse,
+    StatusHistoryCreate,
+    StatusHistoryResponse,
+)
 
 __all__ = [
     "UserCreate",
@@ -12,4 +30,20 @@ __all__ = [
     "RoleResponse",
     "PaginatedRolesResponse",
     "UserRoleResponse",
+    "PatientCreate",
+    "PatientUpdate",
+    "PatientResponse",
+    "PatientListResponse",
+    "PaginatedPatientsResponse",
+    "EmergencyContactCreate",
+    "EmergencyContactUpdate",
+    "EmergencyContactResponse",
+    "InsuranceCreate",
+    "InsuranceUpdate",
+    "InsuranceResponse",
+    "DocumentCreate",
+    "DocumentUpdate",
+    "DocumentResponse",
+    "StatusHistoryCreate",
+    "StatusHistoryResponse",
 ]

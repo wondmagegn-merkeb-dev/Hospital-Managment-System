@@ -99,7 +99,7 @@ export default function ListLayout<T extends { id?: number | string }>({
           {stats.map((stat, index) => (
             <Card
               key={index}
-              className="bg-card hover:shadow-xl transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 animate-fade-in"
+              className="bg-card animate-fade-in !hover:shadow-lg"
               style={{ animationDelay: `${index * 100}ms` }}
             >
               <CardContent className="p-4 md:p-6">

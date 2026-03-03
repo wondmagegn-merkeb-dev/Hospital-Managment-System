@@ -9,7 +9,7 @@ export const ROUTE_PERMISSIONS: Record<string, { resource: string; action: strin
   '/users': { resource: 'user', action: 'read' },
   '/roles': { resource: 'role', action: 'read' },
   '/patients': { resource: 'patient', action: 'read' },
-  '/patients/new': { resource: 'patient', action: 'create' },
+  '/patients/add': { resource: 'patient', action: 'create' },
   '/patients/records': { resource: 'patient', action: 'read' },
   '/appointments': { resource: 'appointment', action: 'read' },
   '/appointments/new': { resource: 'appointment', action: 'create' },

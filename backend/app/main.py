@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
-from .routers import auth, user, role
+from .routers import auth, user, role, patient
 from datetime import datetime
 from .middleware.cors import setup_cors
 import traceback
@@ -37,3 +37,4 @@ def root():
 app.include_router(auth.authRouter)
 app.include_router(user.userRouter)
 app.include_router(role.roleRouter)
+app.include_router(patient.patientRouter)

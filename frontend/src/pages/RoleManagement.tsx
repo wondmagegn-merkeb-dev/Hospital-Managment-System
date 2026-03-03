@@ -113,7 +113,7 @@ export default function RoleManagement() {
     {
       header: 'Description',
       accessor: (row: Role) => (
-        <span className="text-sm text-gray-600">
+        <span className="text-sm text-gray-600 truncate block max-w-[300px]" title={row.description || undefined}>
           {row.description || <span className="text-gray-400">No description</span>}
         </span>
       ),
@@ -124,16 +124,6 @@ export default function RoleManagement() {
       header: 'Permissions',
       accessor: (row: Role) => formatPermissionsForTable(row.permissions),
       sortable: false,
-    },
-    {
-      header: 'Created',
-      accessor: (row: Role) => (
-        <span className="text-sm text-muted-foreground">
-          {new Date(row.created_at).toLocaleDateString()}
-        </span>
-      ),
-      sortable: true,
-      sortKey: 'created_at',
     },
     {
       header: 'Actions',

@@ -22,7 +22,7 @@ export default function Dashboard() {
           return (
             <div
               key={stat.label}
-              className="bg-gradient-to-br from-card via-card to-card/80 backdrop-blur-sm border border-border/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 animate-fade-in"
+              className="bg-gradient-to-br from-card via-card to-card/80 backdrop-blur-sm border border-border/50 rounded-2xl p-6 shadow-lg animate-fade-in"
               style={{ animationDelay: `${index * 100}ms` }}
             >
               <div className="flex items-center justify-between">

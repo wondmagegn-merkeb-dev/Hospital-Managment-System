@@ -3,6 +3,8 @@ import ProtectedLayout from '../components/ProtectedLayout';
 import Dashboard from '../pages/Dashboard';
 import UserManagement from '../pages/UserManagement';
 import RoleManagement from '../pages/RoleManagement';
+import PatientManagement from '../pages/PatientManagement';
+import AddPatient from '../pages/AddPatient';
 import Profile from '../pages/Profile';
 import Login from '../pages/Login';
 import ForgotPassword from '../pages/ForgotPassword';
@@ -54,13 +56,30 @@ export default function AppRoutes() {
           }
         />
         <Route
+          path="/patients/new"
+          element={<Navigate to="/patients/add" replace />}
+        />
+        <Route
+          path="/patients/add"
+          element={
+            <ProtectedLayout>
+              <AddPatient />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/patients/edit/:id"
+          element={
+            <ProtectedLayout>
+              <AddPatient />
+            </ProtectedLayout>
+          }
+        />
+        <Route
           path="/patients"
           element={
             <ProtectedLayout>
-              <div className="p-6">
-                <h1 className="text-3xl font-bold">Patients</h1>
-                <p className="text-muted-foreground mt-1">Patient management coming soon...</p>
-              </div>
+              <PatientManagement />
             </ProtectedLayout>
           }
         />
