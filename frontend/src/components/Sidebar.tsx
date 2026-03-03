@@ -35,7 +35,7 @@ const menuItems: MenuItem[] = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', permission: null },
   { 
     icon: Users, 
-    label: 'Patients', 
+    label: 'Patients Manage', 
     permission: { resource: 'patient', action: 'read' },
     submenu: [
       { label: 'All Patients', path: '/patients', permission: { resource: 'patient', action: 'read' } },
